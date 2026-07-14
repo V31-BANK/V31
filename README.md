@@ -1,5 +1,5 @@
 
-![Clean Architecture.svg](docs/image/Clean%20Architecture.svg)
+![Clean Architecture.svg](.idea/docs/image/Clean%20Architecture.svg)
 
 Due to the amount of boilerplate required by the current framework,
 adopting a pure Clean Architecture is not practical.
