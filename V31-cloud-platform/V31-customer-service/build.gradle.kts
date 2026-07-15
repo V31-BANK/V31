@@ -2,12 +2,7 @@ plugins {
     id("java")
 }
 
-group = "org.v31bank"
-version = "1.0-SNAPSHOT"
 
-repositories {
-    mavenCentral()
-}
 
 dependencies {
     testImplementation(platform("org.junit:junit-bom:5.10.0"))
@@ -15,6 +10,4 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
-tasks.test {
-    useJUnitPlatform()
-}
+

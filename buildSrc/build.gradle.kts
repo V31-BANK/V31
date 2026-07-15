@@ -2,7 +2,7 @@ plugins {
     id("java")
 }
 
-group = "org.v31bank"
+group = "org.v31bank.build"
 version = "1.0-SNAPSHOT"
 
 repositories {

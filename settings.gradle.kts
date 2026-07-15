@@ -1,7 +1,13 @@
 rootProject.name = "V31"
 
-include("V31-cloud-platform")
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        mavenCentral()
+    }
+}
 
+include("V31-cloud-platform")
 include("framework-bom")
 include("framework-platform")
 include("V31-core")
