@@ -1,11 +1,14 @@
 plugins {
-    id("java-platform")
+    `java-platform`
+}
+
+javaPlatform {
+    allowDependencies()
 }
 
 dependencies {
+    api(platform("org.springframework.boot:spring-boot-dependencies:4.1.0"))
+
     constraints {
-        api("org.springframework:spring-core:6.1.10")
-        api("com.fasterxml.jackson.core:jackson-databind:2.17.2")
-        api("org.apache.commons:commons-lang3:3.14.0")
     }
 }

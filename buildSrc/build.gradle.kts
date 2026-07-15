@@ -1,5 +1,5 @@
 plugins {
-    id("java")
+    java
 }
 
 group = "org.v31bank.build"
