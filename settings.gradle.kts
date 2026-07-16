@@ -1,4 +1,3 @@
-
 dependencyResolutionManagement {
     repositoriesMode = RepositoriesMode.FAIL_ON_PROJECT_REPOS
     repositories {
@@ -32,3 +31,6 @@ include("cloud-platform:V31-cbs-service")
 include("cloud-platform:V31-cbs-contract")
 include("cloud-platform:V31-notification-service")
 include("cloud-platform:V31-notification-contract")
+
+include("starter:V31-data-jpa-spring-boot-starter")
+include("module:V31-data-jpa-spring-boot")
