@@ -1,4 +1,3 @@
-rootProject.name = "V31"
 
 dependencyResolutionManagement {
     repositoriesMode = RepositoriesMode.FAIL_ON_PROJECT_REPOS
@@ -6,6 +5,8 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
+
+rootProject.name = "V31"
 
 include("module")
 include("starter")
