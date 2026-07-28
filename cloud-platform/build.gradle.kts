@@ -2,7 +2,6 @@ subprojects {
     when {
         name.endsWith("-service") -> {
             apply(plugin = "java")
-            apply(plugin = "org.springframework.boot")
         }
 
         name.endsWith("-contract") -> {
@@ -12,7 +11,7 @@ subprojects {
 
     plugins.withId("org.springframework.boot") {
         dependencies {
-            add("implementation", "org.springframework.boot:spring-boot-starter-webmvc")
+            add("testImplementation", "org.springframework.boot:spring-boot-starter-test")
         }
     }
 }
