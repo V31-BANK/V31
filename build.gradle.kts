@@ -11,6 +11,7 @@ allprojects {
 subprojects {
     plugins.withType<JavaPlugin> {
         dependencies {
+            add("annotationProcessor", platform(project(":framework-platform")))
             add("implementation", platform(project(":framework-platform")))
             add("testImplementation", "org.springframework.boot:spring-boot-starter-test")
             add("testRuntimeOnly", "org.junit.platform:junit-platform-launcher")
