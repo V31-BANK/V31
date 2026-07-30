@@ -5,3 +5,119 @@ Due to the amount of boilerplate required by the current framework,
 adopting a pure Clean Architecture is not practical.
 Instead, we follow its core dependency principle:
 the Domain layer should remain independent and should not depend on Application, Infrastructure, or Presentation.
+
+## Layers
+
+Each service under `cloud-platform/` is organised into four layers. Dependencies point
+inward: Presentation and Infrastructure both depend on Application, Application depends on
+Domain, and Domain depends on nothing. Presentation never calls Infrastructure directly —
+they meet only through the ports Application declares.
+
+### `application` — use cases, orchestration, transactions
+
+Owns *what the system can do*. It coordinates domain objects and outbound ports, defines
+the transaction boundary, and holds no business rules of its own: a rule that survives the
+removal of the database and the HTTP layer belongs in Domain instead.
+
+```
+application
+├── dto            Inputs and outputs of use cases, and the queries they accept.
+├── command        Write requests, named imperatively (CreateCustomerCommand).
+├── query          Read requests, separate from commands so the read and write models
+│                  are free to diverge.
+├── result         Use case return types, keeping callers off the domain model.
+├── port
+│   ├── in         Input ports — the interfaces Presentation calls. One per use case,
+│   │              suffixed UseCase.
+│   └── out        Output ports — the interfaces this layer needs someone to implement,
+│                  suffixed Port. Declared here, implemented in Infrastructure, which is
+│                  what inverts the dependency.
+├── service        Implementations of the input ports. Transaction boundaries live here.
+├── event          Integration events published outward, translated from domain events.
+│                  These are a published contract: changing one breaks its consumers.
+└── exception      Failures of use case execution — not found, forbidden, conflicting.
+                   Business rule violations belong in Domain.
+```
+
+Use cases never call each other. Shared behaviour moves down into a domain service when it
+is a business rule, or up into a coarser use case when it is a sequence of steps.
+
+### `domain` — entities, value objects, business rules
+
+The heart of the service, and the only layer with no outward dependencies. It must remain
+meaningful with every framework stripped away.
+
+```
+domain
+├── model          Entities and aggregate roots. Each guards its own invariants — a wallet
+│                  refuses to go negative rather than trusting its callers to check.
+├── valueobject    Immutable, identity-free types compared by value: Money, Email,
+│                  AccountNumber. They carry behaviour, unlike DTOs.
+├── service        Business rules that span aggregates and therefore belong to no single
+│                  entity. No persistence, no transactions, no I/O.
+├── event          Facts expressed in domain language, recorded by aggregates and published
+│                  by the layers above. Plain records with no messaging dependency; their
+│                  main use is letting one aggregate react to another without sharing a
+│                  transaction.
+└── exception      Violations of business rules, such as an insufficient balance.
+```
+
+### `infrastructure` — adapters to the outside world
+
+Implements the output ports Application declares. Everything technology-specific lives
+here, so swapping a technology touches this layer alone.
+
+```
+infrastructure
+├── persistence    Storage adapters, suffixed PersistenceAdapter, with the Spring Data
+│                  interfaces underneath in a jpa subpackage.
+├── cache          Cache adapters, kept apart from persistence so caching is a decision
+│                  the application layer never sees.
+├── messaging      Publishers and consumers — the outbox relay, Kafka listeners.
+├── external       Clients for other services and third-party APIs, suffixed by their
+│                  transport (ExchangeRateHttpAdapter).
+├── config         Spring configuration: data sources, serialisation, clients.
+└── exception      Technical failures, translated into application or domain terms before
+                   they cross the boundary.
+```
+
+### `presentation` — HTTP entry points
+
+Maps requests onto use cases and use case results onto responses. It calls Application
+only, and holds no business logic; a controller that decides something is a controller with
+a rule in the wrong place.
+
+```
+presentation
+├── controller     REST controllers, versioned by package (controller/v1).
+├── dto            Request and Response records — the wire contract. Kept separate from the
+│                  domain model so a schema change never leaks into the API, and so fields
+│                  are exposed only when written here on purpose.
+├── advice         @RestControllerAdvice handlers mapping exceptions onto status codes.
+├── config         Web configuration: CORS, argument resolvers, converters.
+└── filter         Servlet filters — request logging, correlation identifiers.
+```
+
+## Naming
+
+One vocabulary per layer, so a name states where it belongs.
+
+| Element                | Suffix               | Example                        |
+|------------------------|----------------------|--------------------------------|
+| Input port             | `UseCase`            | `CustomerUseCase`              |
+| Output port            | `Port`               | `CustomerPort`                 |
+| Use case implementation| `Service`            | `CustomerService`              |
+| Persistence adapter    | `PersistenceAdapter` | `CustomerPersistenceAdapter`   |
+| External adapter       | `<Transport>Adapter` | `ExchangeRateHttpAdapter`      |
+| Spring Data interface  | `JpaRepository`      | `CustomerJpaRepository`        |
+| Wire contract          | `Request` / `Response`| `CustomerRequest`             |
+
+`Impl` appears nowhere: an interface named `CustomerUseCase` and an implementation named
+`CustomerService` already read differently.
+
+## Scope
+
+The tree above is the full vocabulary, not a checklist. Packages are created when there is
+something to put in them — a service doing plain CRUD needs neither `command` nor `event`,
+and adding them early costs files without buying structure. Layering earns its keep in
+proportion to domain complexity.

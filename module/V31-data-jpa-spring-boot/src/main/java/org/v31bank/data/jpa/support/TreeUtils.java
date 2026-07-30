@@ -13,6 +13,9 @@ import org.v31bank.data.jpa.domain.TreeEntity;
 
 /**
  * Utility for assembling flat lists of {@link TreeEntity} nodes into trees.
+ *
+ * @author Xander Wang
+ * @since 0.2.0
  */
 public final class TreeUtils {
 

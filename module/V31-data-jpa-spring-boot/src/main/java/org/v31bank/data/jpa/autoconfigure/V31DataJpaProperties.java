@@ -4,6 +4,9 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 
 /**
  * Configuration properties for V31 Data JPA.
+ *
+ * @author Xander Wang
+ * @since 0.2.0
  */
 @ConfigurationProperties("v31.data.jpa")
 public class V31DataJpaProperties {

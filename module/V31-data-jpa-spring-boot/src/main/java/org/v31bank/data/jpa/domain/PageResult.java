@@ -10,6 +10,8 @@ import org.springframework.data.domain.Page;
  * Data's {@link Page} and using one-based page numbering.
  *
  * @param <T> the type of the page content
+ * @author Xander Wang
+ * @since 0.2.0
  */
 public class PageResult<T> {
 

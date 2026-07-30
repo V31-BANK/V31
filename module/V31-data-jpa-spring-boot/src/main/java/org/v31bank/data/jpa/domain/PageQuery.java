@@ -9,6 +9,9 @@ import org.springframework.data.domain.Sort;
  * <p>
  * Query objects are expected to extend this class with their own filter fields
  * and convert to a Spring Data {@link Pageable} via {@link #toPageable()}.
+ *
+ * @author Xander Wang
+ * @since 0.2.0
  */
 public class PageQuery {
 

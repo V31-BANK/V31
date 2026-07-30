@@ -16,6 +16,8 @@ import jakarta.persistence.Transient;
  * {@link org.v31bank.data.jpa.support.TreeUtils#build}.
  *
  * @param <T> the concrete entity type
+ * @author Xander Wang
+ * @since 0.2.0
  */
 @MappedSuperclass
 public abstract class TreeEntity<T extends TreeEntity<T>> extends BaseEntity {

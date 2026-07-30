@@ -16,6 +16,9 @@ import org.v31bank.data.jpa.audit.FixedAuditorAware;
  * {@link AutoConfiguration Auto-configuration} for V31 Data JPA support: enables
  * JPA auditing and registers a fallback {@link AuditorAware} so audit fields on
  * {@link org.v31bank.data.jpa.domain.BaseEntity} are populated automatically.
+ *
+ * @author Xander Wang
+ * @since 0.2.0
  */
 @AutoConfiguration
 @ConditionalOnClass(AuditingEntityListener.class)

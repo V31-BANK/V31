@@ -18,6 +18,9 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 /**
  * Base class for all entities, providing a time-ordered UUIDv7 primary key and
  * audit fields populated automatically by Spring Data JPA auditing.
+ *
+ * @author Xander Wang
+ * @since 0.2.0
  */
 @MappedSuperclass
 @EntityListeners(AuditingEntityListener.class)
