@@ -15,7 +15,7 @@ import org.v31bank.customer.domain.constant.CustomerCategoryStatus;
 import org.v31bank.customer.domain.model.CustomerCategory;
 import org.v31bank.customer.domain.service.CustomerCategoryHierarchy;
 import org.v31bank.data.jpa.domain.PageResult;
-import org.v31bank.data.jpa.support.TreeUtils;
+import org.v31bank.data.jpa.util.TreeUtils;
 
 /**
  * Default {@link CustomerCategoryUseCase} implementation.

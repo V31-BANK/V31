@@ -13,7 +13,7 @@ import jakarta.persistence.Transient;
  * <p>
  * The {@code children} collection is not persisted; it is populated when a flat
  * list of nodes is assembled into a tree, typically by
- * {@link org.v31bank.data.jpa.support.TreeUtils#build}.
+ * {@link org.v31bank.data.jpa.util.TreeUtils#build}.
  *
  * @param <T> the concrete entity type
  * @author Xander Wang

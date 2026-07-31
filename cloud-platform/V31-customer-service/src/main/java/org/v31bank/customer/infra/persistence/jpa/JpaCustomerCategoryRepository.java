@@ -1,4 +1,4 @@
-package org.v31bank.customer.infra.persistence.repository;
+package org.v31bank.customer.infra.persistence.jpa;
 
 import java.util.List;
 import java.util.UUID;

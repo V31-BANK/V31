@@ -1,4 +1,4 @@
-package org.v31bank.data.jpa.support;
+package org.v31bank.data.jpa.util;
 
 import java.util.ArrayList;
 import java.util.Collection;

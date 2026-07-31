@@ -16,7 +16,7 @@ import org.v31bank.customer.application.dto.CustomerCategoryPageQuery;
 import org.v31bank.customer.application.port.out.CustomerCategoryPort;
 import org.v31bank.customer.domain.constant.CustomerCategoryStatus;
 import org.v31bank.customer.domain.model.CustomerCategory;
-import org.v31bank.customer.infra.persistence.repository.JpaCustomerCategoryRepository;
+import org.v31bank.customer.infra.persistence.jpa.JpaCustomerCategoryRepository;
 import org.v31bank.data.jpa.domain.PageResult;
 
 /**

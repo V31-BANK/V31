@@ -15,7 +15,7 @@ import org.springframework.util.StringUtils;
 import org.v31bank.customer.application.port.out.CustomerPort;
 import org.v31bank.customer.domain.constant.CustomerStatus;
 import org.v31bank.customer.domain.model.Customer;
-import org.v31bank.customer.infra.persistence.repository.JpaCustomerRepository;
+import org.v31bank.customer.infra.persistence.jpa.JpaCustomerRepository;
 import org.v31bank.data.jpa.domain.PageQuery;
 import org.v31bank.data.jpa.domain.PageResult;
 
