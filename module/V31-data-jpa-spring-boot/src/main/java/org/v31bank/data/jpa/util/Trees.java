@@ -17,14 +17,14 @@ import org.v31bank.data.jpa.domain.TreeEntity;
  * @author Xander Wang
  * @since 0.2.0
  */
-public final class TreeUtils {
+public final class Trees {
 
     @SuppressWarnings("java:S1612")
     private static final Comparator<TreeEntity<?>> SIBLING_ORDER = Comparator
         .comparing((TreeEntity<?> node) -> node.getSortOrder(), Comparator.nullsLast(Comparator.naturalOrder()))
         .thenComparing(BaseEntity::getId, Comparator.nullsLast(Comparator.naturalOrder()));
 
-    private TreeUtils() {
+    private Trees() {
     }
 
     /**

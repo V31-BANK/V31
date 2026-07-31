@@ -1,6 +1,6 @@
 package org.v31bank.customer.presentation.dto;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -16,7 +16,7 @@ import org.v31bank.customer.domain.model.CustomerCategory;
  * @since 0.2.0
  */
 public record CustomerCategoryResponse(UUID id, UUID parentId, String code, String name, Integer sortOrder,
-        CustomerCategoryStatus status, LocalDateTime createdDate, LocalDateTime lastModifiedDate,
+        CustomerCategoryStatus status, Instant createdDate, Instant lastModifiedDate,
         List<CustomerCategoryResponse> children) {
 
     /**

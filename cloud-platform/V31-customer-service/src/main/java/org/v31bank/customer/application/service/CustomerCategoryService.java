@@ -15,7 +15,7 @@ import org.v31bank.customer.domain.constant.CustomerCategoryStatus;
 import org.v31bank.customer.domain.model.CustomerCategory;
 import org.v31bank.customer.domain.service.CustomerCategoryHierarchy;
 import org.v31bank.data.jpa.domain.PageResult;
-import org.v31bank.data.jpa.util.TreeUtils;
+import org.v31bank.data.jpa.util.Trees;
 
 /**
  * Default {@link CustomerCategoryUseCase} implementation.
@@ -68,7 +68,7 @@ public class CustomerCategoryService implements CustomerCategoryUseCase {
     @Override
     @Transactional(readOnly = true)
     public List<CustomerCategory> tree(UUID rootId, CustomerCategoryStatus status) {
-        List<CustomerCategory> roots = TreeUtils.build(this.customerCategoryRepository.findAll(status));
+        List<CustomerCategory> roots = Trees.build(this.customerCategoryRepository.findAll(status));
         if (rootId == null) {
             return roots;
         }
