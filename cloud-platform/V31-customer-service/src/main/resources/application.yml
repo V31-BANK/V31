@@ -1,6 +1,10 @@
 spring:
   application:
     name: V31-customer-service
+  jackson:
+    # ApiResponse leaves the members it is not using unset: without this a failure
+    # carries an empty payload and a success carries empty error fields.
+    default-property-inclusion: non_null
   datasource:
     url: jdbc:postgresql://localhost:5432/postgres
     username: wangxiang

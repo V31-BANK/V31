@@ -1,5 +1,7 @@
 package org.v31bank.core.response;
 
+import java.util.Optional;
+
 /**
  * The failures any service can report, independent of what it does.
  * <p>
@@ -83,6 +85,26 @@ public enum CommonErrorCode implements ErrorCode {
     CommonErrorCode(int httpStatus, String defaultMessage) {
         this.httpStatus = httpStatus;
         this.defaultMessage = defaultMessage;
+    }
+
+    /**
+     * Look up a code by its wire form, which is what a layer holding only a
+     * serialised {@link ApiResponse} has to work from — the envelope carries the
+     * code as text, so the status that belongs with it has to be recovered rather
+     * than read.
+     * @param code the code to look up, which may be {@code null}
+     * @return the matching code, or empty when it is not one of these
+     */
+    public static Optional<CommonErrorCode> find(String code) {
+        if (code == null) {
+            return Optional.empty();
+        }
+        for (CommonErrorCode candidate : values()) {
+            if (candidate.name().equals(code)) {
+                return Optional.of(candidate);
+            }
+        }
+        return Optional.empty();
     }
 
     @Override

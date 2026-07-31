@@ -13,6 +13,10 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import org.v31bank.core.response.ApiResponse;
+import org.v31bank.core.response.CommonErrorCode;
+import org.v31bank.core.response.ErrorCode;
+import org.v31bank.core.response.PageResponse;
 import org.v31bank.customer.application.dto.CustomerPageQuery;
 import org.v31bank.customer.application.port.in.CustomerUseCase;
 import org.v31bank.customer.domain.model.Customer;
@@ -22,13 +26,19 @@ import org.v31bank.data.jpa.domain.PageResult;
 
 /**
  * REST endpoints for managing customers.
+ * <p>
+ * Every endpoint answers with an {@link ApiResponse}, so a caller parses one
+ * shape whether the request succeeded or failed. The HTTP status keeps its usual
+ * meaning alongside it.
  *
  * @author Xander Wang
  * @since 0.2.0
  */
 @RestController
-@RequestMapping("/api/v1/customers")
+@RequestMapping(CustomerController.PATH)
 public class CustomerController {
+
+    static final String PATH = "/api/v1/customers";
 
     private final CustomerUseCase customerInputPort;
 
@@ -37,35 +47,59 @@ public class CustomerController {
     }
 
     @PostMapping
-    public ResponseEntity<CustomerResponse> create(@RequestBody CustomerRequest request) {
+    public ResponseEntity<ApiResponse<CustomerResponse>> create(@RequestBody CustomerRequest request) {
         Customer customer = this.customerInputPort.create(request.email(), request.fullName());
-        URI location = URI.create("/api/v1/customers/" + customer.getId());
-        return ResponseEntity.created(location).body(CustomerResponse.from(customer));
+        return ResponseEntity.created(URI.create(PATH + "/" + customer.getId()))
+            .body(ApiResponse.ok(CustomerResponse.from(customer)));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<CustomerResponse> get(@PathVariable UUID id) {
+    public ResponseEntity<ApiResponse<CustomerResponse>> get(@PathVariable UUID id) {
         return this.customerInputPort.get(id)
-            .map((customer) -> ResponseEntity.ok(CustomerResponse.from(customer)))
-            .orElseGet(() -> ResponseEntity.notFound().build());
+            .map((customer) -> ResponseEntity.ok(ApiResponse.ok(CustomerResponse.from(customer))))
+            .orElseGet(() -> notFound(id));
     }
 
     @GetMapping
-    public PageResult<CustomerResponse> page(CustomerPageQuery query) {
-        return this.customerInputPort.page(query).map(CustomerResponse::from);
+    public ApiResponse<PageResponse<CustomerResponse>> page(CustomerPageQuery query) {
+        PageResult<CustomerResponse> page = this.customerInputPort.page(query).map(CustomerResponse::from);
+        return ApiResponse
+            .ok(PageResponse.of(page.getRecords(), page.getTotal(), page.getPageNumber(), page.getPageSize()));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<CustomerResponse> update(@PathVariable UUID id, @RequestBody CustomerRequest request) {
+    public ResponseEntity<ApiResponse<CustomerResponse>> update(@PathVariable UUID id,
+            @RequestBody CustomerRequest request) {
         return this.customerInputPort.update(id, request.email(), request.fullName(), request.status())
-            .map((customer) -> ResponseEntity.ok(CustomerResponse.from(customer)))
-            .orElseGet(() -> ResponseEntity.notFound().build());
+            .map((customer) -> ResponseEntity.ok(ApiResponse.ok(CustomerResponse.from(customer))))
+            .orElseGet(() -> notFound(id));
     }
 
+    /**
+     * Answer a delete with the envelope and no payload rather than a bare
+     * {@code 204}, so that this endpoint is parsed like every other one.
+     * @param id the customer to delete
+     * @return the response to send
+     */
     @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
-        return this.customerInputPort.delete(id) ? ResponseEntity.noContent().build()
-                : ResponseEntity.notFound().build();
+    public ResponseEntity<ApiResponse<Void>> delete(@PathVariable UUID id) {
+        return this.customerInputPort.delete(id) ? ResponseEntity.ok(ApiResponse.ok()) : notFound(id);
+    }
+
+    private static <T> ResponseEntity<ApiResponse<T>> notFound(UUID id) {
+        return error(CommonErrorCode.NOT_FOUND, "No customer exists with id " + id);
+    }
+
+    /**
+     * Report a failure, taking the status from the code so that the two cannot
+     * disagree.
+     * @param errorCode the reason the request failed
+     * @param message the message describing this occurrence
+     * @param <T> the type this endpoint returns when it succeeds
+     * @return the response to send
+     */
+    private static <T> ResponseEntity<ApiResponse<T>> error(ErrorCode errorCode, String message) {
+        return ResponseEntity.status(errorCode.httpStatus()).body(ApiResponse.error(errorCode, message));
     }
 
 }

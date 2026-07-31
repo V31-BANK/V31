@@ -4,8 +4,8 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.v31bank.core.response.ApiResponse;
 import org.v31bank.customer.application.dto.CustomerCategoryPageQuery;
-import org.v31bank.customer.application.dto.CustomerCategoryResult;
 import org.v31bank.customer.domain.constant.CustomerCategoryStatus;
 import org.v31bank.customer.domain.model.CustomerCategory;
 import org.v31bank.data.jpa.domain.PageResult;
@@ -27,7 +27,7 @@ public interface CustomerCategoryUseCase {
      * @param status the initial status, or {@code null} for the default
      * @return the outcome of the command
      */
-    CustomerCategoryResult create(String code, String name, UUID parentId, Integer sortOrder,
+    ApiResponse<CustomerCategory> create(String code, String name, UUID parentId, Integer sortOrder,
                                   CustomerCategoryStatus status);
 
     Optional<CustomerCategory> get(UUID id);
@@ -59,7 +59,7 @@ public interface CustomerCategoryUseCase {
      * @param status the new status, or {@code null} to leave it unchanged
      * @return the outcome of the command
      */
-    CustomerCategoryResult update(UUID id, String code, String name, UUID parentId, Integer sortOrder,
+    ApiResponse<CustomerCategory> update(UUID id, String code, String name, UUID parentId, Integer sortOrder,
             CustomerCategoryStatus status);
 
     /**
@@ -67,6 +67,6 @@ public interface CustomerCategoryUseCase {
      * @param id the category to delete
      * @return the outcome of the command
      */
-    CustomerCategoryResult delete(UUID id);
+    ApiResponse<CustomerCategory> delete(UUID id);
 
 }

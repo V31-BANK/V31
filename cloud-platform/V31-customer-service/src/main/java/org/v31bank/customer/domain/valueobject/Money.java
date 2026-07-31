@@ -2,6 +2,7 @@ package org.v31bank.customer.domain.valueobject;
 
 import java.math.BigDecimal;
 import java.util.Currency;
+import java.util.Objects;
 
 
 /**
@@ -14,59 +15,66 @@ import java.util.Currency;
  * @author Xander Wang
  * @since 0.2.0
  */
-public final class Money {
+public record Money(
+        BigDecimal amount,
+        Currency currency
+) {
 
-    private final BigDecimal amount;
-    private final Currency currency;
+    public Money {
+        Objects.requireNonNull(amount, "Amount must not be null.");
+        Objects.requireNonNull(currency, "Currency must not be null.");
 
-
-    public Money(BigDecimal amount, Currency currency) {
-
-        if (amount.compareTo(BigDecimal.ZERO) < 0) {
-            throw new IllegalArgumentException("Amount cannot be negative");
+        if (amount.signum() < 0) {
+            throw new IllegalArgumentException("Amount cannot be negative.");
         }
-
-        this.amount = amount;
-        this.currency = currency;
     }
-
 
     public Money add(Money other) {
-
-        if (!this.currency.equals(other.currency)) {
-            throw new IllegalArgumentException(
-                    "Currency mismatch"
-            );
-        }
-
+        requireSameCurrency(other);
         return new Money(
-                this.amount.add(other.amount),
-                this.currency
+                amount.add(other.amount),
+                currency
         );
     }
-
 
     public Money subtract(Money other) {
-
-        if (!this.currency.equals(other.currency)) {
-            throw new IllegalArgumentException(
-                    "Currency mismatch"
-            );
-        }
-
+        requireSameCurrency(other);
         return new Money(
-                this.amount.subtract(other.amount),
-                this.currency
+                amount.subtract(other.amount),
+                currency
         );
     }
 
-
-    public BigDecimal getAmount() {
-        return amount;
+    public boolean isZero() {
+        return amount.signum() == 0;
     }
 
+    public boolean isPositive() {
+        return amount.signum() > 0;
+    }
 
-    public Currency getCurrency() {
-        return currency;
+    public boolean isNegative() {
+        return amount.signum() < 0;
+    }
+
+    public boolean isGreaterThan(Money other) {
+        requireSameCurrency(other);
+        return amount.compareTo(other.amount) > 0;
+    }
+
+    public boolean isLessThan(Money other) {
+        requireSameCurrency(other);
+        return amount.compareTo(other.amount) < 0;
+    }
+
+    private void requireSameCurrency(Money other) {
+        Objects.requireNonNull(other, "Money must not be null.");
+
+        if (!currency.equals(other.currency)) {
+            throw new IllegalArgumentException(
+                    "Currency mismatch: %s vs %s"
+                            .formatted(currency, other.currency)
+            );
+        }
     }
 }

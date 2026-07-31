@@ -113,4 +113,31 @@ class ApiResponseTests {
         assertSame(response, response.withTraceId(null));
     }
 
+    @Test
+    void mapConvertsThePayloadAndKeepsTheVerdict() {
+        ApiResponse<Integer> mapped = ApiResponse.ok("42", "Done").withTraceId("d4f1").map(Integer::parseInt);
+        assertEquals(42, mapped.data());
+        assertTrue(mapped.success());
+        assertEquals("OK", mapped.code());
+        assertEquals("Done", mapped.message());
+        assertEquals("d4f1", mapped.traceId());
+    }
+
+    @Test
+    void mapLeavesAFailureAlone() {
+        ApiResponse<String> failure = ApiResponse.error(CommonErrorCode.NOT_FOUND, "gone");
+        ApiResponse<Integer> mapped = failure.map((value) -> {
+            throw new AssertionError("the converter must not run when there is no payload");
+        });
+        assertFalse(mapped.success());
+        assertEquals("NOT_FOUND", mapped.code());
+        assertEquals("gone", mapped.message());
+        assertNull(mapped.data());
+    }
+
+    @Test
+    void mapRejectsAMissingConverter() {
+        assertThrows(NullPointerException.class, () -> ApiResponse.ok("42").map(null));
+    }
+
 }

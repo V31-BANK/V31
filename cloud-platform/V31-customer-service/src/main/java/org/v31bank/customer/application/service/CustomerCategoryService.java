@@ -7,10 +7,11 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.v31bank.core.response.ApiResponse;
+import org.v31bank.core.response.CommonErrorCode;
 import org.v31bank.customer.application.dto.CustomerCategoryPageQuery;
 import org.v31bank.customer.application.port.in.CustomerCategoryUseCase;
 import org.v31bank.customer.application.port.out.CustomerCategoryPort;
-import org.v31bank.customer.application.dto.CustomerCategoryResult;
 import org.v31bank.customer.domain.constant.CustomerCategoryStatus;
 import org.v31bank.customer.domain.model.CustomerCategory;
 import org.v31bank.customer.domain.service.CustomerCategoryHierarchy;
@@ -34,13 +35,15 @@ public class CustomerCategoryService implements CustomerCategoryUseCase {
     }
 
     @Override
-    public CustomerCategoryResult create(String code, String name, UUID parentId, Integer sortOrder,
+    public ApiResponse<CustomerCategory> create(String code, String name, UUID parentId, Integer sortOrder,
                                          CustomerCategoryStatus status) {
         if (this.customerCategoryRepository.existsByCode(code)) {
-            return new CustomerCategoryResult.DuplicateCode(code);
+            return ApiResponse.error(CommonErrorCode.CONFLICT,
+                    "Customer category code '" + code + "' is already in use");
         }
         if (parentId != null && this.customerCategoryRepository.findById(parentId).isEmpty()) {
-            return new CustomerCategoryResult.ParentNotFound(parentId);
+            return ApiResponse.error(CommonErrorCode.UNPROCESSABLE,
+                    "No parent customer category exists with id " + parentId);
         }
         CustomerCategory category = new CustomerCategory();
         category.setCode(code);
@@ -50,7 +53,7 @@ public class CustomerCategoryService implements CustomerCategoryUseCase {
         if (status != null) {
             category.setStatus(status);
         }
-        return new CustomerCategoryResult.Success(this.customerCategoryRepository.save(category));
+        return ApiResponse.ok(this.customerCategoryRepository.save(category));
     }
 
     @Override
@@ -76,22 +79,25 @@ public class CustomerCategoryService implements CustomerCategoryUseCase {
     }
 
     @Override
-    public CustomerCategoryResult update(UUID id, String code, String name, UUID parentId, Integer sortOrder,
+    public ApiResponse<CustomerCategory> update(UUID id, String code, String name, UUID parentId, Integer sortOrder,
             CustomerCategoryStatus status) {
         Optional<CustomerCategory> found = this.customerCategoryRepository.findById(id);
         if (found.isEmpty()) {
-            return new CustomerCategoryResult.NotFound(id);
+            return ApiResponse.error(CommonErrorCode.NOT_FOUND, "No customer category exists with id " + id);
         }
         CustomerCategory category = found.get();
         if (!category.getCode().equals(code) && this.customerCategoryRepository.existsByCode(code)) {
-            return new CustomerCategoryResult.DuplicateCode(code);
+            return ApiResponse.error(CommonErrorCode.CONFLICT,
+                    "Customer category code '" + code + "' is already in use");
         }
         if (parentId != null) {
             if (this.customerCategoryRepository.findById(parentId).isEmpty()) {
-                return new CustomerCategoryResult.ParentNotFound(parentId);
+                return ApiResponse.error(CommonErrorCode.UNPROCESSABLE,
+                    "No parent customer category exists with id " + parentId);
             }
             if (CustomerCategoryHierarchy.createsCycle(id, parentId, this.customerCategoryRepository::findById)) {
-                return new CustomerCategoryResult.CyclicParent(id, parentId);
+                return ApiResponse.error(CommonErrorCode.CONFLICT, "Customer category " + id
+                        + " cannot be moved under itself or one of its descendants " + parentId);
             }
         }
         category.setCode(code);
@@ -101,21 +107,22 @@ public class CustomerCategoryService implements CustomerCategoryUseCase {
         if (status != null) {
             category.setStatus(status);
         }
-        return new CustomerCategoryResult.Success(this.customerCategoryRepository.save(category));
+        return ApiResponse.ok(this.customerCategoryRepository.save(category));
     }
 
     @Override
-    public CustomerCategoryResult delete(UUID id) {
+    public ApiResponse<CustomerCategory> delete(UUID id) {
         Optional<CustomerCategory> found = this.customerCategoryRepository.findById(id);
         if (found.isEmpty()) {
-            return new CustomerCategoryResult.NotFound(id);
+            return ApiResponse.error(CommonErrorCode.NOT_FOUND, "No customer category exists with id " + id);
         }
         if (this.customerCategoryRepository.existsByParentId(id)) {
-            return new CustomerCategoryResult.HasChildren(id);
+            return ApiResponse.error(CommonErrorCode.CONFLICT,
+                    "Customer category " + id + " still has children and cannot be deleted");
         }
         CustomerCategory category = found.get();
         this.customerCategoryRepository.delete(category);
-        return new CustomerCategoryResult.Success(category);
+        return ApiResponse.ok(category);
     }
 
     /**

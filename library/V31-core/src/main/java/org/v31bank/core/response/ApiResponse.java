@@ -3,6 +3,7 @@ package org.v31bank.core.response;
 import java.time.Instant;
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Function;
 
 /**
  * The body every REST endpoint in the platform returns, so that a caller parses
@@ -133,6 +134,26 @@ public record ApiResponse<T>(boolean success, String code, String message, T dat
         Objects.requireNonNull(violations, "violations must not be null");
         return new ApiResponse<>(false, CommonErrorCode.VALIDATION_FAILED.code(),
                 CommonErrorCode.VALIDATION_FAILED.defaultMessage(), null, violations, null, Instant.now());
+    }
+
+    /**
+     * Return this response with its payload converted, keeping the outcome, the
+     * message and everything else intact.
+     * <p>
+     * This is what lets a layer produce the envelope around a type the next layer
+     * has to replace — a use case answering with a domain object that the web
+     * layer turns into a response record — without either of them rebuilding the
+     * envelope and risking a different verdict. On a failure there is no payload,
+     * so the converter is not called.
+     * @param converter the conversion to apply to the payload
+     * @param <R> the target payload type
+     * @return the converted response
+     */
+    public <R> ApiResponse<R> map(Function<? super T, ? extends R> converter) {
+        Objects.requireNonNull(converter, "converter must not be null");
+        R converted = (this.data != null) ? converter.apply(this.data) : null;
+        return new ApiResponse<>(this.success, this.code, this.message, converted, this.violations, this.traceId,
+                this.timestamp);
     }
 
     /**
