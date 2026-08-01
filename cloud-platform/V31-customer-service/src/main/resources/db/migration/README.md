@@ -4,6 +4,60 @@ Schema for this service is owned by Flyway. Hibernate runs with `ddl-auto: valid
 and never creates or alters tables — it only fails startup when the entities and the
 live schema disagree.
 
+## Schema Ownership
+
+Every service in the platform points at the same database, so each one owns a schema
+named after it and nothing writes outside its own.
+
+This is not tidiness. Flyway records what it has applied in a `flyway_schema_history`
+table inside the schema it manages. Two services sharing `public` share that one table,
+and each would find migrations in it that it does not have on its classpath — which
+Flyway treats as a corrupted history and refuses to start on. The second service
+deployed would simply not come up.
+
+```yaml
+spring:
+  flyway:
+    schemas: customer
+    default-schema: customer
+    create-schemas: true
+  jpa:
+    properties:
+      hibernate:
+        default_schema: customer
+```
+
+A service using jOOQ rather than JPA has no `default_schema` to set, because its
+generated tables are named without one and resolve against the connection's
+`search_path`. There the schema is set on the pool instead, so every connection is
+already on it before jOOQ sees it:
+
+```yaml
+spring:
+  datasource:
+    hikari:
+      schema: compliance
+```
+
+### Moving a service that was already in `public`
+
+Only needed once, for a service whose tables were created before this convention. It is
+not a migration and cannot be one: Flyway cannot record a change to where its own
+history lives.
+
+```sql
+create schema if not exists customer;
+alter table public.customer              set schema customer;
+alter table public.customer_category     set schema customer;
+alter table public.flyway_schema_history set schema customer;
+```
+
+Constraints and indexes follow their tables, and the history moves with them, so the
+next startup finds the migrations it already applied and adds only the new ones. Run it
+before the service starts with the schema configured, not after — otherwise Flyway finds
+an empty schema and re-applies everything into it, leaving the real data stranded in
+`public`.
+
 Both naming rules below are enforced by the `validateMigrationNames` Gradle task, which
 runs before resources are processed — a malformed name or a reused version fails the
 build rather than the deployment.

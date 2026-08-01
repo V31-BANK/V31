@@ -1,0 +1,3 @@
+org.v31bank.grpc.autoconfigure.V31GrpcServerAutoConfiguration
+org.v31bank.grpc.autoconfigure.V31GrpcClientAutoConfiguration
+org.v31bank.grpc.autoconfigure.V31GrpcWebAutoConfiguration

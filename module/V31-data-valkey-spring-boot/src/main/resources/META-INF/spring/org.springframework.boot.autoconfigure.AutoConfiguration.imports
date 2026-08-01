@@ -1,0 +1,2 @@
+org.v31bank.data.valkey.autoconfigure.V31ValkeyAutoConfiguration
+org.v31bank.data.valkey.autoconfigure.V31ValkeyCacheAutoConfiguration

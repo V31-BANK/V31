@@ -1,0 +1,49 @@
+package org.v31bank.grpc.autoconfigure;
+
+import jakarta.servlet.Filter;
+
+import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBooleanProperty;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
+
+import org.v31bank.grpc.web.HeaderPropagationFilter;
+
+/**
+ * {@link AutoConfiguration Auto-configuration} for where a request's context
+ * enters the platform.
+ * <p>
+ * The interceptors carry values from one service to the next, but for most
+ * requests the first hop is an HTTP call from outside, and something has to put
+ * the values there to begin with. Without this the client interceptor finds
+ * nothing to send: the service at the edge logs one identifier, the one behind it
+ * issues another, and the two halves of the same request cannot be joined up.
+ * <p>
+ * Applies only to a servlet application. A service that speaks gRPC alone has no
+ * HTTP entry point and needs none of this.
+ *
+ * @author Xander Wang
+ * @since 0.2.0
+ */
+@AutoConfiguration
+@ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
+@ConditionalOnClass({ Filter.class, HeaderPropagationFilter.class })
+@ConditionalOnBooleanProperty(name = "v31.grpc.propagation.enabled", matchIfMissing = true)
+@EnableConfigurationProperties(V31GrpcProperties.class)
+public class V31GrpcWebAutoConfiguration {
+
+    /**
+     * Reads the request's context off the incoming HTTP request.
+     * @param properties the header names to carry beyond the request identifier
+     * @return the filter
+     */
+    @Bean
+    @ConditionalOnMissingBean
+    public HeaderPropagationFilter headerPropagationFilter(V31GrpcProperties properties) {
+        return new HeaderPropagationFilter(properties.getPropagation().getHeaders());
+    }
+
+}
