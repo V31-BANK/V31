@@ -19,7 +19,3 @@ gradlePlugin {
 		}
 	}
 }
-
-tasks.named("jar") {
-	dependsOn("checkFormat")
-}
