@@ -9,6 +9,7 @@ import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.plugins.JavaBasePlugin;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginExtension;
+import org.gradle.api.plugins.quality.Checkstyle;
 import org.gradle.api.tasks.compile.JavaCompile;
 import org.gradle.api.tasks.testing.Test;
 import org.gradle.jvm.toolchain.JavaLanguageVersion;
@@ -29,7 +30,7 @@ class JavaConventions {
 	/**
 	 * The platform every project resolves its third-party versions from.
 	 */
-	private static final String INTERNAL_DEPENDENCIES = ":V31-internal-dependencies";
+	private static final String INTERNAL_DEPENDENCIES = ":platform:V31-internal-dependencies";
 
 	private static final int JAVA_VERSION = 21;
 
@@ -115,12 +116,13 @@ class JavaConventions {
 	}
 
 	private void configureTests(Project project) {
-		project.getPlugins().withType(JavaPlugin.class, (java) -> {
-			project.getDependencies().add("testImplementation", "org.assertj:assertj-core");
-			project.getDependencies().add("testImplementation", "org.junit.jupiter:junit-jupiter");
-			project.getDependencies().add("testRuntimeOnly", "org.junit.platform:junit-platform-launcher");
+		project.getTasks().withType(Test.class, (test) -> {
+			test.useJUnitPlatform();
+			test.setMaxHeapSize("1536M");
 		});
-		project.getTasks().withType(Test.class).configureEach(Test::useJUnitPlatform);
+		project.getPlugins()
+				.withType(JavaPlugin.class, (javaPlugin) -> project.getDependencies()
+						.add(JavaPlugin.TEST_RUNTIME_ONLY_CONFIGURATION_NAME, "org.junit.platform:junit-platform-launcher"));
 	}
 
 	/**
