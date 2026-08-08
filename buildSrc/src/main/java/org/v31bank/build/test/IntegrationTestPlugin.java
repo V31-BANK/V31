@@ -9,6 +9,9 @@ import org.gradle.api.tasks.SourceSetContainer;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.testing.Test;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
+import org.gradle.plugins.ide.idea.IdeaPlugin;
+import org.gradle.plugins.ide.idea.model.IdeaModel;
+import org.gradle.plugins.ide.idea.model.IdeaModule;
 
 /**
  * Adds an {@code intTest} source set and task for tests that need more than the project
@@ -46,6 +49,23 @@ public class IntegrationTestPlugin implements Plugin<Project> {
 		project.getTasks().named(LifecycleBasePlugin.CHECK_TASK_NAME).configure((check) -> check.dependsOn(task));
 		project.getDependencies()
 			.add(intTestSourceSet.getRuntimeOnlyConfigurationName(), "org.junit.platform:junit-platform-launcher");
+		declareAsTestSources(project, intTestSourceSet);
+	}
+
+	/**
+	 * Gradle marks only {@code test} as testing source, so everything an IDE imports from
+	 * here arrives as production code and the analysers running over it read these tests
+	 * as production code too — an assertion becomes something to remove. The source set
+	 * has to say what it is, and it says it here rather than in each developer's project
+	 * settings, where the next import undoes it.
+	 * @param project the project
+	 * @param intTestSourceSet the source set
+	 */
+	private void declareAsTestSources(Project project, SourceSet intTestSourceSet) {
+		project.getPluginManager().apply(IdeaPlugin.class);
+		IdeaModule module = project.getExtensions().getByType(IdeaModel.class).getModule();
+		module.getTestSources().from(intTestSourceSet.getJava().getSourceDirectories());
+		module.getTestResources().from(intTestSourceSet.getResources().getSourceDirectories());
 	}
 
 	private SourceSet createSourceSet(Project project) {
