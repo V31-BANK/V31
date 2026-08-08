@@ -116,6 +116,7 @@ class JavaConventions {
 
 	private void configureTests(Project project) {
 		project.getPlugins().withType(JavaPlugin.class, (java) -> {
+			project.getDependencies().add("testImplementation", "org.assertj:assertj-core");
 			project.getDependencies().add("testImplementation", "org.junit.jupiter:junit-jupiter");
 			project.getDependencies().add("testRuntimeOnly", "org.junit.platform:junit-platform-launcher");
 		});

@@ -9,6 +9,15 @@ dependencies {
 	// build's scripts are compiled and run against; without it the conventions
 	// plugin fails with "Plugin with id 'io.spring.javaformat' not found".
 	runtimeOnly("io.spring.javaformat:spring-javaformat-gradle-plugin:${javaFormatVersion}")
+
+	testImplementation(platform("org.junit:junit-bom:${junitJupiterVersion}"))
+	testImplementation("org.assertj:assertj-core:${assertjVersion}")
+	testImplementation("org.junit.jupiter:junit-jupiter")
+	testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+}
+
+test {
+	useJUnitPlatform()
 }
 
 gradlePlugin {
@@ -19,3 +28,5 @@ gradlePlugin {
 		}
 	}
 }
+
+jar.dependsOn check

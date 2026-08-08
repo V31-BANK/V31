@@ -1,10 +1,12 @@
 package org.v31bank.build;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -12,15 +14,17 @@ import java.util.regex.Pattern;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.GradleException;
 import org.gradle.api.file.ConfigurableFileCollection;
+import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.tasks.InputFiles;
+import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.PathSensitive;
 import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.TaskAction;
 
 /**
  * Fails the build on a migration whose name does not follow the convention in
- * {@code :V31-customer-service:db/migration/README.md}, or that reuses a version another migration already
- * took.
+ * {@code :V31-customer-service:db/migration/README.md}, or that reuses a version another
+ * migration already took.
  * <p>
  * A migration is checked here rather than at deployment because that is the last moment
  * it is still cheap. Flyway records a version the first time it applies one; by the time
@@ -49,16 +53,33 @@ public abstract class ValidateMigrationNames extends DefaultTask {
 
 	/**
 	 * The migrations to check.
+	 * <p>
+	 * Fingerprinted by path relative to the migration directory rather than by absolute
+	 * path, so a checkout in a different directory — a build agent, another developer —
+	 * produces the same fingerprint and can reuse the same result.
 	 * @return the migration files
 	 */
 	@InputFiles
 	@PathSensitive(PathSensitivity.RELATIVE)
 	public abstract ConfigurableFileCollection getMigrations();
 
+	/**
+	 * Written when the names check out, and otherwise the only reason this task can be
+	 * skipped.
+	 * <p>
+	 * A task that declares no output is never up to date: Gradle has nothing to verify a
+	 * previous run by, so it re-runs on every build regardless of what
+	 * {@link #getMigrations()} was fingerprinted as. This file is what lets the
+	 * fingerprint be used for what it was declared for.
+	 * @return the marker file
+	 */
+	@OutputFile
+	public abstract RegularFileProperty getReport();
+
 	@TaskAction
-	public void validate() {
+	public void validate() throws IOException {
 		List<String> problems = new ArrayList<>();
-		Map<String, String> byVersion = new LinkedHashMap<>();
+		Map<String, String> byVersion = new HashMap<>();
 		for (File migration : getMigrations().getFiles()) {
 			String name = migration.getName();
 			if (name.startsWith("R__")) {
@@ -87,9 +108,11 @@ public abstract class ValidateMigrationNames extends DefaultTask {
 			}
 		}
 		if (!problems.isEmpty()) {
-			throw new GradleException("Migration names do not follow :V31-customer-service:db/migration/README.md:" + System.lineSeparator()
-					+ "  " + String.join(System.lineSeparator() + "  ", problems));
+			throw new GradleException("Migration names do not follow :V31-customer-service:db/migration/README.md:"
+					+ System.lineSeparator() + "  " + String.join(System.lineSeparator() + "  ", problems));
 		}
+		Files.writeString(getReport().get().getAsFile().toPath(),
+				byVersion.size() + " migrations checked" + System.lineSeparator());
 	}
 
 	private static boolean isRealInstant(String version) {
