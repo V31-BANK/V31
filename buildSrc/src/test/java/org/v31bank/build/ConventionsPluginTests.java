@@ -5,7 +5,6 @@ import java.util.List;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.plugins.JavaPluginExtension;
-import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.tasks.compile.JavaCompile;
 import org.gradle.testfixtures.ProjectBuilder;
 import org.junit.jupiter.api.Test;
@@ -31,7 +30,6 @@ class ConventionsPluginTests {
 	void addsNothingToAProjectWithNoPlugins() {
 		Project project = conventions();
 		assertThat(project.getConfigurations().findByName(DEPENDENCY_MANAGEMENT)).isNull();
-		assertThat(project.getExtensions().findByType(PublishingExtension.class)).isNull();
 	}
 
 	@Test
@@ -85,28 +83,6 @@ class ConventionsPluginTests {
 			.forEach((compile) -> assertThat(compile.getOptions().getRelease().get()).isEqualTo(21));
 	}
 
-	@Test
-	void addsNoPublicationUntilMavenPublishIsApplied() {
-		assertThat(javaProject().getExtensions().findByType(PublishingExtension.class)).isNull();
-	}
-
-	@Test
-	void publishesTheJavaComponentOfAProjectThatPublishes() {
-		Project project = javaProject();
-		project.getPlugins().apply("maven-publish");
-		PublishingExtension publishing = project.getExtensions().getByType(PublishingExtension.class);
-		assertThat(publishing.getPublications().findByName("v31")).isNotNull();
-	}
-
-	@Test
-	void publishesThePlatformComponentOfAPlatformThatPublishes() {
-		Project project = conventions();
-		project.getPlugins().apply("java-platform");
-		project.getPlugins().apply("maven-publish");
-		PublishingExtension publishing = project.getExtensions().getByType(PublishingExtension.class);
-		assertThat(publishing.getPublications().findByName("v31")).isNotNull();
-	}
-
 	/**
 	 * A platform has no source to compile and no runtime classpath, so the Java
 	 * conventions have to stay away from it.
@@ -124,7 +100,8 @@ class ConventionsPluginTests {
 	 */
 	private Project conventions() {
 		Project root = ProjectBuilder.builder().withName("V31").build();
-		ProjectBuilder.builder().withName("V31-internal-dependencies").withParent(root).build();
+		Project platform = ProjectBuilder.builder().withName("platform").withParent(root).build();
+		ProjectBuilder.builder().withName("V31-internal-dependencies").withParent(platform).build();
 		Project project = ProjectBuilder.builder().withName("under-test").withParent(root).build();
 		project.getPlugins().apply(ConventionsPlugin.class);
 		return project;

@@ -1,7 +1,5 @@
 package org.v31bank.build;
 
-import java.util.Collections;
-
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ConfigurationContainer;
@@ -9,10 +7,10 @@ import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.plugins.JavaBasePlugin;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginExtension;
-import org.gradle.api.plugins.quality.Checkstyle;
 import org.gradle.api.tasks.compile.JavaCompile;
 import org.gradle.api.tasks.testing.Test;
 import org.gradle.jvm.toolchain.JavaLanguageVersion;
+import java.util.Collections;
 
 /**
  * Conventions applied to every project that builds Java.
@@ -121,8 +119,8 @@ class JavaConventions {
 			test.setMaxHeapSize("1536M");
 		});
 		project.getPlugins()
-				.withType(JavaPlugin.class, (javaPlugin) -> project.getDependencies()
-						.add(JavaPlugin.TEST_RUNTIME_ONLY_CONFIGURATION_NAME, "org.junit.platform:junit-platform-launcher"));
+			.withType(JavaPlugin.class, (javaPlugin) -> project.getDependencies()
+				.add(JavaPlugin.TEST_RUNTIME_ONLY_CONFIGURATION_NAME, "org.junit.platform:junit-platform-launcher"));
 	}
 
 	/**

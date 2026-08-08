@@ -26,6 +26,10 @@ gradlePlugin {
 			id = "org.v31bank.conventions"
 			implementationClass = "org.v31bank.build.ConventionsPlugin"
 		}
+		deployedPlugin {
+			id = "org.v31bank.deployed"
+			implementationClass = "org.v31bank.build.DeployedPlugin"
+		}
 	}
 }
 

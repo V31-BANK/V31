@@ -5,9 +5,9 @@ import org.gradle.api.Project;
 import org.gradle.api.plugins.JavaPlatformPlugin;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.publish.PublishingExtension;
-import org.gradle.api.publish.tasks.GenerateModuleMetadata;
 import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.api.publish.maven.plugins.MavenPublishPlugin;
+import org.gradle.api.publish.tasks.GenerateModuleMetadata;
 
 /**
  * Conventions applied to every project that publishes something.
@@ -27,16 +27,17 @@ import org.gradle.api.publish.maven.plugins.MavenPublishPlugin;
  */
 class MavenPublishingConventions {
 
+	private static final String PUBLICATION_NAME = "v31";
+
 	void apply(Project project) {
-		project.getPlugins().withType(MavenPublishPlugin.class, (maven) -> {
-			PublishingExtension publishing = project.getExtensions().getByType(PublishingExtension.class);
-			MavenPublication publication = publishing.getPublications().create("v31", MavenPublication.class);
-			// Matched rather than looked up: a subproject's own build file is evaluated
-			// after this one, so the component does not exist yet at this point.
-			publishComponent(project, publication, JavaPlugin.class, "java");
-			publishComponent(project, publication, JavaPlatformPlugin.class, "javaPlatform");
-			allowDependenciesWithoutVersions(project);
-		});
+		project.getPlugins().apply(MavenPublishPlugin.class);
+		PublishingExtension publishing = project.getExtensions().getByType(PublishingExtension.class);
+		MavenPublication publication = publishing.getPublications().create(PUBLICATION_NAME, MavenPublication.class);
+		// Matched rather than looked up: a subproject's own build file is evaluated
+		// after this one, so the component does not exist yet at this point.
+		publishComponent(project, publication, JavaPlugin.class, "java");
+		publishComponent(project, publication, JavaPlatformPlugin.class, "javaPlatform");
+		allowDependenciesWithoutVersions(project);
 	}
 
 	/**
@@ -52,17 +53,17 @@ class MavenPublishingConventions {
 	 */
 	private void allowDependenciesWithoutVersions(Project project) {
 		project.getTasks()
-			.withType(GenerateModuleMetadata.class)
-			.configureEach((task) -> task.getSuppressedValidationErrors().add("dependencies-without-versions"));
+				.withType(GenerateModuleMetadata.class)
+				.configureEach((task) -> task.getSuppressedValidationErrors().add("dependencies-without-versions"));
 	}
 
 	private void publishComponent(Project project, MavenPublication publication,
-			Class<? extends Plugin<Project>> pluginType, String componentName) {
+								  Class<? extends Plugin<Project>> pluginType, String componentName) {
 		project.getPlugins()
-			.withType(pluginType,
-					(plugin) -> project.getComponents()
-						.matching((component) -> componentName.equals(component.getName()))
-						.all(publication::from));
+				.withType(pluginType,
+						(plugin) -> project.getComponents()
+								.matching((component) -> componentName.equals(component.getName()))
+								.all(publication::from));
 	}
 
 }
