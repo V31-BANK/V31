@@ -39,29 +39,6 @@ spring:
       schema: compliance
 ```
 
-### Moving a service that was already in `public`
-
-Only needed once, for a service whose tables were created before this convention. It is
-not a migration and cannot be one: Flyway cannot record a change to where its own
-history lives.
-
-```sql
-create schema if not exists customer;
-alter table public.customer              set schema customer;
-alter table public.customer_category     set schema customer;
-alter table public.flyway_schema_history set schema customer;
-```
-
-Constraints and indexes follow their tables, and the history moves with them, so the
-next startup finds the migrations it already applied and adds only the new ones. Run it
-before the service starts with the schema configured, not after — otherwise Flyway finds
-an empty schema and re-applies everything into it, leaving the real data stranded in
-`public`.
-
-Both naming rules below are enforced by the `validateMigrationNames` Gradle task, which
-runs before resources are processed — a malformed name or a reused version fails the
-build rather than the deployment.
-
 ## Versioned Migrations
 
 Applied once, in version order.
