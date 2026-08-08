@@ -10,11 +10,7 @@ import org.gradle.api.tasks.compile.JavaCompile;
 import org.gradle.testfixtures.ProjectBuilder;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link ConventionsPlugin}.
@@ -34,15 +30,15 @@ class ConventionsPluginTests {
 	@Test
 	void addsNothingToAProjectWithNoPlugins() {
 		Project project = conventions();
-		assertNull(project.getConfigurations().findByName(DEPENDENCY_MANAGEMENT));
-		assertNull(project.getExtensions().findByType(PublishingExtension.class));
+		assertThat(project.getConfigurations().findByName(DEPENDENCY_MANAGEMENT)).isNull();
+		assertThat(project.getExtensions().findByType(PublishingExtension.class)).isNull();
 	}
 
 	@Test
 	void addsTheConventionsWhenTheJavaPluginArrivesAfterwards() {
 		Project project = conventions();
 		project.getPlugins().apply("java-library");
-		assertNotNull(project.getConfigurations().findByName(DEPENDENCY_MANAGEMENT));
+		assertThat(project.getConfigurations().findByName(DEPENDENCY_MANAGEMENT)).isNotNull();
 	}
 
 	/**
@@ -52,8 +48,8 @@ class ConventionsPluginTests {
 	@Test
 	void keepsTheDependencyManagementConfigurationOutOfPublishedMetadata() {
 		Configuration dependencyManagement = javaProject().getConfigurations().getByName(DEPENDENCY_MANAGEMENT);
-		assertFalse(dependencyManagement.isCanBeConsumed());
-		assertFalse(dependencyManagement.isCanBeResolved());
+		assertThat(dependencyManagement.isCanBeConsumed()).isFalse();
+		assertThat(dependencyManagement.isCanBeResolved()).isFalse();
 	}
 
 	@Test
@@ -62,7 +58,7 @@ class ConventionsPluginTests {
 		for (String name : List.of("compileClasspath", "runtimeClasspath", "testCompileClasspath",
 				"testRuntimeClasspath", "annotationProcessor")) {
 			Configuration configuration = project.getConfigurations().getByName(name);
-			assertTrue(parentNames(configuration).contains(DEPENDENCY_MANAGEMENT), name);
+			assertThat(parentNames(configuration)).as(name).contains(DEPENDENCY_MANAGEMENT);
 		}
 	}
 
@@ -75,7 +71,7 @@ class ConventionsPluginTests {
 		Project project = javaProject();
 		for (String name : List.of("api", "implementation", "compileOnly", "runtimeOnly")) {
 			Configuration configuration = project.getConfigurations().getByName(name);
-			assertFalse(parentNames(configuration).contains(DEPENDENCY_MANAGEMENT), name);
+			assertThat(parentNames(configuration)).as(name).doesNotContain(DEPENDENCY_MANAGEMENT);
 		}
 	}
 
@@ -83,15 +79,15 @@ class ConventionsPluginTests {
 	void buildsAgainstTheJavaVersionThePlatformTargets() {
 		Project project = javaProject();
 		JavaPluginExtension java = project.getExtensions().getByType(JavaPluginExtension.class);
-		assertEquals(21, java.getToolchain().getLanguageVersion().get().asInt());
+		assertThat(java.getToolchain().getLanguageVersion().get().asInt()).isEqualTo(21);
 		project.getTasks()
 			.withType(JavaCompile.class)
-			.forEach((compile) -> assertEquals(21, compile.getOptions().getRelease().get()));
+			.forEach((compile) -> assertThat(compile.getOptions().getRelease().get()).isEqualTo(21));
 	}
 
 	@Test
 	void addsNoPublicationUntilMavenPublishIsApplied() {
-		assertNull(javaProject().getExtensions().findByType(PublishingExtension.class));
+		assertThat(javaProject().getExtensions().findByType(PublishingExtension.class)).isNull();
 	}
 
 	@Test
@@ -99,7 +95,7 @@ class ConventionsPluginTests {
 		Project project = javaProject();
 		project.getPlugins().apply("maven-publish");
 		PublishingExtension publishing = project.getExtensions().getByType(PublishingExtension.class);
-		assertNotNull(publishing.getPublications().findByName("v31"));
+		assertThat(publishing.getPublications().findByName("v31")).isNotNull();
 	}
 
 	@Test
@@ -108,7 +104,7 @@ class ConventionsPluginTests {
 		project.getPlugins().apply("java-platform");
 		project.getPlugins().apply("maven-publish");
 		PublishingExtension publishing = project.getExtensions().getByType(PublishingExtension.class);
-		assertNotNull(publishing.getPublications().findByName("v31"));
+		assertThat(publishing.getPublications().findByName("v31")).isNotNull();
 	}
 
 	/**
@@ -119,7 +115,7 @@ class ConventionsPluginTests {
 	void leavesAPlatformWithoutTheJavaConventions() {
 		Project project = conventions();
 		project.getPlugins().apply("java-platform");
-		assertNull(project.getConfigurations().findByName(DEPENDENCY_MANAGEMENT));
+		assertThat(project.getConfigurations().findByName(DEPENDENCY_MANAGEMENT)).isNull();
 	}
 
 	/**

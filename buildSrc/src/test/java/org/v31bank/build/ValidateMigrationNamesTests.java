@@ -12,9 +12,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.catchThrowableOfType;
 
 /**
  * Tests for {@link ValidateMigrationNames}.
@@ -65,19 +64,19 @@ class ValidateMigrationNamesTests {
 	@Test
 	void rejectsAVersionedNameThatDoesNotFollowTheConvention() {
 		givenMigrations("V20260730093000__Customer_create.sql");
-		assertTrue(failure().contains("a versioned migration is named"));
+		assertThat(failure()).contains("a versioned migration is named");
 	}
 
 	@Test
 	void rejectsAVerbTheConventionDoesNotList() {
 		givenMigrations("V20260730093000__customer_delete.sql");
-		assertTrue(failure().contains("a versioned migration is named"));
+		assertThat(failure()).contains("a versioned migration is named");
 	}
 
 	@Test
 	void rejectsARepeatableNameThatDoesNotFollowTheConvention() {
 		givenMigrations("R__customer_summary_table.sql");
-		assertTrue(failure().contains("a repeatable migration is named"));
+		assertThat(failure()).contains("a repeatable migration is named");
 	}
 
 	/**
@@ -87,7 +86,7 @@ class ValidateMigrationNamesTests {
 	@Test
 	void rejectsAVersionThatIsNotARealInstant() {
 		givenMigrations("V99999999999999__customer_create.sql");
-		assertTrue(failure().contains("is not a real yyyyMMddHHmmss timestamp"));
+		assertThat(failure()).contains("is not a real yyyyMMddHHmmss timestamp");
 	}
 
 	@Test
@@ -95,7 +94,7 @@ class ValidateMigrationNamesTests {
 		for (String version : new String[] { "20261330093000", "20260732093000", "20260730253000", "20260730096100" }) {
 			setUp();
 			givenMigrations("V" + version + "__customer_create.sql");
-			assertTrue(failure().contains("is not a real yyyyMMddHHmmss timestamp"), version);
+			assertThat(failure()).as(version).contains("is not a real yyyyMMddHHmmss timestamp");
 		}
 	}
 
@@ -107,9 +106,9 @@ class ValidateMigrationNamesTests {
 	void rejectsTwoMigrationsClaimingTheSameVersion() {
 		givenMigrations("V20260730093000__customer_create.sql", "V20260730093000__wallet_create.sql");
 		String message = failure();
-		assertTrue(message.contains("is already taken by"), message);
-		assertTrue(message.contains("V20260730093000__customer_create.sql"), message);
-		assertTrue(message.contains("V20260730093000__wallet_create.sql"), message);
+		assertThat(message).contains("is already taken by");
+		assertThat(message).contains("V20260730093000__customer_create.sql");
+		assertThat(message).contains("V20260730093000__wallet_create.sql");
 	}
 
 	/**
@@ -121,9 +120,9 @@ class ValidateMigrationNamesTests {
 		givenMigrations("V20260730093000__Customer_create.sql", "R__customer_summary_table.sql",
 				"V99999999999999__wallet_create.sql");
 		String message = failure();
-		assertTrue(message.contains("a versioned migration is named"), message);
-		assertTrue(message.contains("a repeatable migration is named"), message);
-		assertTrue(message.contains("is not a real yyyyMMddHHmmss timestamp"), message);
+		assertThat(message).contains("a versioned migration is named");
+		assertThat(message).contains("a repeatable migration is named");
+		assertThat(message).contains("is not a real yyyyMMddHHmmss timestamp");
 	}
 
 	/**
@@ -133,27 +132,27 @@ class ValidateMigrationNamesTests {
 	@Test
 	void reportsAMalformedNameOnlyOnce() {
 		givenMigrations("V20260730093000__Customer_create.sql");
-		assertEquals(1, failure().lines().filter((line) -> line.contains("Customer_create")).count());
+		assertThat(failure().lines().filter((line) -> line.contains("Customer_create")).count()).isEqualTo(1);
 	}
 
 	@Test
 	void writesTheReportWhenTheNamesCheckOut() throws IOException {
 		givenMigrations("V20260730093000__customer_create.sql", "V20260730093001__wallet_create.sql");
 		validate();
-		assertEquals("2 migrations checked", Files.readString(this.report.toPath()).strip());
+		assertThat(Files.readString(this.report.toPath()).strip()).isEqualTo("2 migrations checked");
 	}
 
 	@Test
 	void writesNoReportWhenAMigrationIsRejected() {
 		givenMigrations("V20260730093000__Customer_create.sql");
 		failure();
-		assertTrue(!this.report.exists(), "the marker must not survive a failed check");
+		assertThat(this.report).as("the marker must not survive a failed check").doesNotExist();
 	}
 
 	@Test
 	void acceptsNoMigrationsAtAll() throws IOException {
 		validate();
-		assertEquals("0 migrations checked", Files.readString(this.report.toPath()).strip());
+		assertThat(Files.readString(this.report.toPath()).strip()).isEqualTo("0 migrations checked");
 	}
 
 	private void givenMigrations(String... names) {
@@ -179,7 +178,7 @@ class ValidateMigrationNamesTests {
 	}
 
 	private String failure() {
-		return assertThrows(GradleException.class, this::validate).getMessage();
+		return catchThrowableOfType(GradleException.class, this::validate).getMessage();
 	}
 
 }

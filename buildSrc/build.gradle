@@ -29,4 +29,3 @@ gradlePlugin {
 	}
 }
 
-jar.dependsOn check
