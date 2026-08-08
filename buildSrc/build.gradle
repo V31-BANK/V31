@@ -30,6 +30,10 @@ gradlePlugin {
 			id = "org.v31bank.deployed"
 			implementationClass = "org.v31bank.build.DeployedPlugin"
 		}
+		integrationTestPlugin {
+			id = "org.v31bank.integration-test"
+			implementationClass = "org.v31bank.build.test.IntegrationTestPlugin"
+		}
 	}
 }
 
