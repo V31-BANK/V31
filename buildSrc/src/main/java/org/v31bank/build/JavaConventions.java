@@ -1,5 +1,6 @@
 package org.v31bank.build;
 
+import io.spring.javaformat.gradle.SpringJavaFormatPlugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ConfigurationContainer;
@@ -74,8 +75,8 @@ class JavaConventions {
 		// The protobuf plugin sets the parents of its own resolvable configurations
 		// after creating them, discarding whatever was added in between. Adding it
 		// again once the project is configured is what makes it stick.
-		project.getPlugins()
-			.withId("com.google.protobuf",
+		project.getPluginManager()
+			.withPlugin("com.google.protobuf",
 					(protobuf) -> project
 						.afterEvaluate((evaluated) -> configurations.matching(JavaConventions::needsManagedVersions)
 							.all((configuration) -> configuration.extendsFrom(dependencyManagement))));
@@ -132,7 +133,7 @@ class JavaConventions {
 	private void configureFormatting(Project project) {
 		Project parent = project.getParent();
 		if (parent == null || !"apis".equals(parent.getName())) {
-			project.getPlugins().apply("io.spring.javaformat");
+			project.getPluginManager().apply(SpringJavaFormatPlugin.class);
 		}
 	}
 

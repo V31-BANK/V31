@@ -35,8 +35,8 @@ public class DeployedPlugin implements Plugin<Project> {
 
 	@Override
 	public void apply(Project project) {
-		project.getPlugins().apply(MavenPublishPlugin.class);
-		project.getPlugins().apply(MavenRepositoryPlugin.class);
+		project.getPluginManager().apply(MavenPublishPlugin.class);
+		project.getPluginManager().apply(MavenRepositoryPlugin.class);
 		PublishingExtension publishing = project.getExtensions().getByType(PublishingExtension.class);
 		MavenPublication publication = publishing.getPublications().create(PUBLICATION_NAME, MavenPublication.class);
 		// Matched rather than looked up: a subproject's own build file is evaluated

@@ -46,7 +46,7 @@ public class MavenRepositoryPlugin implements Plugin<Project> {
 
 	@Override
 	public void apply(Project project) {
-		project.getPlugins().apply(MavenPublishPlugin.class);
+		project.getPluginManager().apply(MavenPublishPlugin.class);
 		PublishingExtension publishing = project.getExtensions().getByType(PublishingExtension.class);
 		File location = project.getLayout().getBuildDirectory().dir("maven-repository").get().getAsFile();
 		publishing.getRepositories().maven((repository) -> {

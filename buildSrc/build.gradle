@@ -4,11 +4,8 @@ plugins {
 }
 
 dependencies {
-	// Not used to compile anything here — JavaConventions applies it by id. Declared
-	// so that it lands on this build's runtime classpath, which is what the main
-	// build's scripts are compiled and run against; without it the conventions
-	// plugin fails with "Plugin with id 'io.spring.javaformat' not found".
-	runtimeOnly("io.spring.javaformat:spring-javaformat-gradle-plugin:${javaFormatVersion}")
+	implementation("io.spring.javaformat:spring-javaformat-gradle-plugin:${javaFormatVersion}")
+	implementation("org.springframework.boot:spring-boot-gradle-plugin:${springBootVersion}")
 
 	testImplementation(platform("org.junit:junit-bom:${junitJupiterVersion}"))
 	testImplementation("org.assertj:assertj-core:${assertjVersion}")
