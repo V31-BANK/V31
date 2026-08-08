@@ -8,7 +8,7 @@ the Domain layer should remain independent and should not depend on Application,
 
 ## Layers
 
-Each service under `cloud-platform/` is organised into four layers. Dependencies point
+Each service under `cloud/` is organised into four layers. Dependencies point
 inward: Presentation and Infrastructure both depend on Application, Application depends on
 Domain, and Domain depends on nothing. Presentation never calls Infrastructure directly —
 they meet only through the ports Application declares.
