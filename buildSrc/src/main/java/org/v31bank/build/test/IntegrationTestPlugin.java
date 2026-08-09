@@ -37,7 +37,6 @@ public class IntegrationTestPlugin implements Plugin<Project> {
 	 */
 	public static String INT_TEST_SOURCE_SET_NAME = "intTest";
 
-
 	@Override
 	public void apply(Project project) {
 		project.getPlugins().withType(JavaPlugin.class, (javaPlugin) -> configureIntegrationTesting(project));

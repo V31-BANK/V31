@@ -31,6 +31,10 @@ gradlePlugin {
 			id = "org.v31bank.integration-test"
 			implementationClass = "org.v31bank.build.test.IntegrationTestPlugin"
 		}
+		starterPlugin {
+			id = "org.v31bank.starter"
+			implementationClass = "org.v31bank.build.starters.StarterPlugin"
+		}
 	}
 }
 
