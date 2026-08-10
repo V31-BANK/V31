@@ -10,6 +10,10 @@ CLAUDE.md
 ### IntelliJ IDEA ###
 .idea/*
 !.idea/icon.svg
+!.idea/copyright/
+!.idea/codeStyles/
+!.idea/inspectionProfiles/
+!readme/
 *.iws
 *.iml
 *.ipr
@@ -18,7 +22,7 @@ CLAUDE.md
 !**/src/test/**/out/
 test-output/
 atlassian-ide-plugin.xml
-!docs/
+
 
 ### Eclipse ###
 .apt_generated
