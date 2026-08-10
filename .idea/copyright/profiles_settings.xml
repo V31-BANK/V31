@@ -1,0 +1,9 @@
+<component name="CopyrightManager">
+  <settings default="default">
+    <module2copyright>
+      <element module="java" copyright="default" />
+      <element module="kotlin" copyright="default" />
+      <element module="groovy" copyright="default" />
+    </module2copyright>
+  </settings>
+</component>
