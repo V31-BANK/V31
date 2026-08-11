@@ -143,6 +143,16 @@ class ConventionsPluginTests {
 	}
 
 	/**
+	 * And makes them stop the build, which is the whole of what a warning is worth. Left
+	 * as warnings they are printed, scrolled past, and joined by the next one.
+	 */
+	@Test
+	void refusesToCompileCodeThatWarns() {
+		assertThat(javaProject().getTasks().withType(JavaCompile.class)).isNotEmpty()
+			.allSatisfy((compile) -> assertThat(compile.getOptions().getCompilerArgs()).contains("-Werror"));
+	}
+
+	/**
 	 * Spring reads constructor and method parameter names at runtime, and without this
 	 * they are {@code arg0} and the binding fails on something that looks unrelated.
 	 */

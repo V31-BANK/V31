@@ -1,0 +1,32 @@
+<?xml version="1.0"?>
+<!DOCTYPE import-control PUBLIC
+		"-//Checkstyle//DTD ImportControl Configuration 1.4//EN"
+		"https://checkstyle.org/dtds/import_control_1_4.dtd">
+<import-control pkg="org.v31bank">
+
+	<!-- Allow other imports -->
+	<allow pkg=".*" regex="true" />
+
+	<!-- Enforce Clean Architecture dependencies -->
+	<subpackage name="[^.]+" regex="true">
+		<subpackage name="domain">
+			<disallow pkg="org\.v31bank\.[^.]+\.application(\..*)?" regex="true"/>
+			<disallow pkg="org\.v31bank\.[^.]+\.infra(\..*)?" regex="true"/>
+			<disallow pkg="org\.v31bank\.[^.]+\.presentation(\..*)?" regex="true"/>
+			<disallow pkg="org\.v31bank\.[^.]+\.api(\..*)?" regex="true"/>
+			<disallow pkg="org\.springframework(\..*)?" regex="true"/>
+		</subpackage>
+		<subpackage name="application">
+			<disallow pkg="org\.v31bank\.[^.]+\.infra(\..*)?" regex="true"/>
+			<disallow pkg="org\.v31bank\.[^.]+\.presentation(\..*)?" regex="true"/>
+			<disallow pkg="org\.v31bank\.[^.]+\.api(\..*)?" regex="true"/>
+		</subpackage>
+		<subpackage name="infra">
+			<disallow pkg="org\.v31bank\.[^.]+\.presentation(\..*)?" regex="true"/>
+		</subpackage>
+		<subpackage name="presentation">
+			<disallow pkg="org\.v31bank\.[^.]+\.infra(\..*)?" regex="true"/>
+			<disallow pkg="org\.v31bank\.[^.]+\.api(\..*)?" regex="true"/>
+		</subpackage>
+	</subpackage>
+</import-control>

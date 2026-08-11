@@ -216,7 +216,11 @@ class JavaConventions {
 		project.getTasks().withType(JavaCompile.class).configureEach((compile) -> {
 			compile.getOptions().getRelease().set(runtimeVersion);
 			Set<String> args = new LinkedHashSet<>(compile.getOptions().getCompilerArgs());
-			args.addAll(List.of("-parameters", "-Xlint:unchecked", "-Xlint:deprecation", "-Xlint:rawtypes",
+			// -Werror is what makes the rest of this list mean anything. A warning
+			// nobody has to act on is read once and then scrolled past, and the build
+			// that prints two hundred of them is the build where the one that mattered
+			// went unread.
+			args.addAll(List.of("-parameters", "-Werror", "-Xlint:unchecked", "-Xlint:deprecation", "-Xlint:rawtypes",
 					"-Xlint:varargs"));
 			compile.getOptions().setCompilerArgs(new ArrayList<>(args));
 		});

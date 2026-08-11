@@ -217,8 +217,8 @@ class FlywayConventionsTests {
 	}
 
 	private static List<Dependency> runtimeOnly(Project project) {
-		return List
-			.copyOf(project.getConfigurations().getByName(JavaPlugin.RUNTIME_ONLY_CONFIGURATION_NAME).getDependencies());
+		return List.copyOf(
+				project.getConfigurations().getByName(JavaPlugin.RUNTIME_ONLY_CONFIGURATION_NAME).getDependencies());
 	}
 
 	private static SourceSet mainSourceSet(Project project) {

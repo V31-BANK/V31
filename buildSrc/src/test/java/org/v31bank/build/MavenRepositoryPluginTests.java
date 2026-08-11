@@ -22,6 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 
+import org.assertj.core.api.InstanceOfAssertFactories;
 import org.gradle.api.Action;
 import org.gradle.api.Project;
 import org.gradle.api.Task;
@@ -31,7 +32,6 @@ import org.gradle.api.artifacts.PublishArtifact;
 import org.gradle.api.artifacts.repositories.MavenArtifactRepository;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.maven.plugins.MavenPublishPlugin;
-import org.assertj.core.api.InstanceOfAssertFactories;
 import org.gradle.testfixtures.ProjectBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -43,8 +43,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Tests for {@link MavenRepositoryPlugin}.
  * <p>
- * The repository exists so that the build can resolve V31 the way a consumer does —
- * by coordinate, out of a repository — without publishing anywhere real. Most of what is
+ * The repository exists so that the build can resolve V31 the way a consumer does — by
+ * coordinate, out of a repository — without publishing anywhere real. Most of what is
  * asserted here is about what ends up <em>in</em> it: a project's own artifacts are not
  * enough, because whoever resolves them needs the V31 projects behind them too.
  *
@@ -87,15 +87,15 @@ class MavenRepositoryPluginTests {
 	void offersNothingUntilThereIsAPublicationToPut() {
 		Project project = project();
 		assertThat(project.getTasks().findByName(PUBLISH_TASK_NAME)).isNull();
-		assertThat(project.getConfigurations()
-			.findByName(MavenRepositoryPlugin.MAVEN_REPOSITORY_CONFIGURATION_NAME)).isNull();
+		assertThat(project.getConfigurations().findByName(MavenRepositoryPlugin.MAVEN_REPOSITORY_CONFIGURATION_NAME))
+			.isNull();
 	}
 
 	@Test
 	void offersTheRepositoryThroughAConfigurationOfItsOwn() {
 		Project project = deployedProject();
-		assertThat(project.getConfigurations()
-			.findByName(MavenRepositoryPlugin.MAVEN_REPOSITORY_CONFIGURATION_NAME)).isNotNull();
+		assertThat(project.getConfigurations().findByName(MavenRepositoryPlugin.MAVEN_REPOSITORY_CONFIGURATION_NAME))
+			.isNotNull();
 	}
 
 	/**

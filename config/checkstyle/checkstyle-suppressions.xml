@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<!DOCTYPE suppressions PUBLIC
+		"-//Checkstyle//DTD SuppressionFilter Configuration 1.2//EN"
+		"https://checkstyle.org/dtds/suppressions_1_2.dtd">
+<suppressions>
+	<!-- A test's name and its assertions are its documentation -->
+	<suppress files="[\\/]src[\\/]test(Fixtures)?[\\/]java[\\/]" checks="Javadoc.*"/>
+	<suppress files="[\\/]src[\\/]intTest[\\/]java[\\/]" checks="Javadoc.*"/>
+	<suppress files="[\\/]src[\\/]test(Fixtures)?[\\/]java[\\/]" checks="SpringJavadoc"/>
+	<suppress files="[\\/]src[\\/]intTest[\\/]java[\\/]" checks="SpringJavadoc"/>
+	<!-- Ignore package-level Javadoc requirements -->
+	<suppress checks="JavadocPackage"/>
+	<!-- Generated protobuf and gRPC sources are written by a tool, not by anyone -->
+	<suppress files="[\\/]generated[\\/]" checks=".*"/>
+</suppressions>
