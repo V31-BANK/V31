@@ -1,3 +1,19 @@
+/*
+ * Copyright 2026-present the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.v31bank.build;
 
 import java.io.File;
@@ -155,10 +171,33 @@ class ValidateMigrationNamesTests {
 		assertThat(Files.readString(this.report.toPath()).strip()).isEqualTo("0 migrations checked");
 	}
 
+	/**
+	 * A versioned migration is written into the directory named for its year, because
+	 * where it sits is part of what is being checked. A name too malformed to have a year
+	 * is written at the top, and fails on its name before its location is reached.
+	 * @param names the migrations to create
+	 */
+	/**
+	 * Flyway scans recursively and orders by version alone, so this never breaks anything
+	 * — it breaks reading, which is the only reason the year directories exist.
+	 */
+	@Test
+	void rejectsAVersionedMigrationFiledUnderTheWrongYear() throws IOException {
+		Path wrong = this.directory.resolve("2027");
+		Files.createDirectories(wrong);
+		Path file = wrong.resolve("V20260729010000__customer_create.sql");
+		Files.writeString(file, "select 1;");
+		this.task.getMigrations().from(file.toFile());
+		assertThat(failure()).contains("a versioned migration lives in db/migration/2026, not 2027");
+	}
+
 	private void givenMigrations(String... names) {
 		for (String name : names) {
-			Path file = this.directory.resolve(name);
+			Path parent = (name.startsWith("V") && name.length() > 5) ? this.directory.resolve(name.substring(1, 5))
+					: this.directory;
+			Path file = parent.resolve(name);
 			try {
+				Files.createDirectories(parent);
 				Files.writeString(file, "select 1;");
 			}
 			catch (IOException ex) {

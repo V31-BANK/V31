@@ -1,17 +1,46 @@
+/*
+ * Copyright 2026-present the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.v31bank.build;
 
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Set;
+
 import io.spring.javaformat.gradle.SpringJavaFormatPlugin;
+import io.spring.javaformat.gradle.tasks.CheckFormat;
+import io.spring.javaformat.gradle.tasks.Format;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ConfigurationContainer;
 import org.gradle.api.artifacts.Dependency;
+import org.gradle.api.artifacts.DependencySet;
 import org.gradle.api.plugins.JavaBasePlugin;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginExtension;
+import org.gradle.api.plugins.quality.Checkstyle;
+import org.gradle.api.plugins.quality.CheckstyleExtension;
+import org.gradle.api.plugins.quality.CheckstylePlugin;
+import org.gradle.api.tasks.SourceTask;
 import org.gradle.api.tasks.compile.JavaCompile;
 import org.gradle.api.tasks.testing.Test;
 import org.gradle.jvm.toolchain.JavaLanguageVersion;
-import java.util.Collections;
 
 /**
  * Conventions applied to every project that builds Java.
@@ -31,14 +60,79 @@ class JavaConventions {
 	 */
 	private static final String INTERNAL_DEPENDENCIES = ":platform:V31-internal-dependencies";
 
-	private static final int JAVA_VERSION = 21;
+	/**
+	 * The property naming the JDK that compiles and that runs the tests. Pinning it
+	 * through a toolchain is what makes the same source produce the same result on every
+	 * machine, rather than whatever JDK happens to be running the build.
+	 */
+	private static final String BUILD_JAVA_VERSION = "buildJavaVersion";
+
+	/**
+	 * The property naming what the result is allowed to use and to run on. Settled with
+	 * {@code release}, which fixes the syntax, the bytecode version and the visible API
+	 * together — so a call to something added later fails here rather than on the JVM the
+	 * artifact claimed to support.
+	 */
+	private static final String RUNTIME_JAVA_VERSION = "runtimeJavaVersion";
+
+	/**
+	 * The property naming the checkstyle release to run, so that it sits beside the other
+	 * tool versions in {@code gradle.properties} rather than inside the build logic.
+	 */
+	private static final String CHECKSTYLE_TOOL_VERSION = "checkstyleToolVersion";
 
 	void apply(Project project) {
-		project.getPlugins().withType(JavaBasePlugin.class, (java) -> {
+		project.getPlugins().withType(JavaBasePlugin.class, (_) -> {
+			configureSpringJavaFormat(project);
 			configureDependencyManagement(project);
 			configureJavaCompilation(project);
 			configureTests(project);
-			configureFormatting(project);
+		});
+	}
+
+	/**
+	 * Holds the code to one shape and one set of habits.
+	 * <p>
+	 * Two tools, because they answer different questions. The formatter settles what the
+	 * code looks like — indentation, wrapping, import order — and settles it by rewriting
+	 * the file, so it is never something to discuss. Checkstyle settles what the code is
+	 * allowed to do: which packages may be imported, whether a deprecation says what
+	 * replaced it, whether a public type explains itself. Neither can do the other's job,
+	 * and both turn a recurring review comment into a build failure.
+	 * <p>
+	 * The checkstyle rules are the ones shipped with the formatter, so the two cannot
+	 * disagree, and the version comes from the formatter's own jar rather than being
+	 * named twice.
+	 * @param project the project to configure
+	 */
+	private void configureSpringJavaFormat(Project project) {
+		project.getPluginManager().apply(SpringJavaFormatPlugin.class);
+		project.getTasks().withType(Format.class).configureEach((format) -> format.setEncoding("UTF-8"));
+		project.getPluginManager().apply(CheckstylePlugin.class);
+		CheckstyleExtension checkstyle = project.getExtensions().getByType(CheckstyleExtension.class);
+		Object toolVersion = project.findProperty(CHECKSTYLE_TOOL_VERSION);
+		if (toolVersion != null) {
+			checkstyle.setToolVersion(toolVersion.toString());
+		}
+		checkstyle.getConfigDirectory().set(project.getRootProject().file("config/checkstyle"));
+		String formatVersion = SpringJavaFormatPlugin.class.getPackage().getImplementationVersion();
+		DependencySet checkstyleDependencies = project.getConfigurations().getByName("checkstyle").getDependencies();
+		checkstyleDependencies
+			.add(project.getDependencies().create("com.puppycrawl.tools:checkstyle:" + checkstyle.getToolVersion()));
+		checkstyleDependencies.add(
+				project.getDependencies().create("io.spring.javaformat:spring-javaformat-checkstyle:" + formatVersion));
+		project.getTasks().withType(CheckFormat.class).configureEach(this::excludeGeneratedSources);
+		project.getTasks().withType(Checkstyle.class).configureEach(this::excludeGeneratedSources);
+	}
+
+	/**
+	 * Neither tool has anything useful to say about code nobody wrote.
+	 * @param task the task to narrow
+	 */
+	private void excludeGeneratedSources(SourceTask task) {
+		task.exclude((candidate) -> {
+			String path = candidate.getFile().getPath().replace(File.separatorChar, '/');
+			return path.contains("/generated/sources/") || path.contains("/generated-source/");
 		});
 	}
 
@@ -77,9 +171,8 @@ class JavaConventions {
 		// again once the project is configured is what makes it stick.
 		project.getPluginManager()
 			.withPlugin("com.google.protobuf",
-					(protobuf) -> project
-						.afterEvaluate((evaluated) -> configurations.matching(JavaConventions::needsManagedVersions)
-							.all((configuration) -> configuration.extendsFrom(dependencyManagement))));
+					(_) -> project.afterEvaluate((_) -> configurations.matching(JavaConventions::needsManagedVersions)
+						.all((configuration) -> configuration.extendsFrom(dependencyManagement))));
 
 		Dependency platform = project.getDependencies()
 			.enforcedPlatform(
@@ -105,13 +198,42 @@ class JavaConventions {
 				|| JavaPlugin.ANNOTATION_PROCESSOR_CONFIGURATION_NAME.equals(name);
 	}
 
+	/**
+	 * Both, because they answer different questions.
+	 * <p>
+	 * The toolchain settles which compiler runs, so that the same source produces the
+	 * same bytecode here and on a build agent. The release settles what that compiler is
+	 * allowed to see: without it the whole JDK is on the compile classpath, and a call to
+	 * something added after this version compiles cleanly and fails at runtime.
+	 * @param project the project to configure
+	 */
 	private void configureJavaCompilation(Project project) {
+		int buildVersion = version(project, BUILD_JAVA_VERSION);
+		int runtimeVersion = version(project, RUNTIME_JAVA_VERSION);
 		project.getExtensions()
 			.configure(JavaPluginExtension.class,
-					(java) -> java.getToolchain().getLanguageVersion().set(JavaLanguageVersion.of(JAVA_VERSION)));
+					(java) -> java.getToolchain().getLanguageVersion().set(JavaLanguageVersion.of(buildVersion)));
 		project.getTasks().withType(JavaCompile.class).configureEach((compile) -> {
-			compile.getOptions().getRelease().set(JAVA_VERSION);
+			compile.getOptions().getRelease().set(runtimeVersion);
+			Set<String> args = new LinkedHashSet<>(compile.getOptions().getCompilerArgs());
+			args.addAll(List.of("-parameters", "-Xlint:unchecked", "-Xlint:deprecation", "-Xlint:rawtypes",
+					"-Xlint:varargs"));
+			compile.getOptions().setCompilerArgs(new ArrayList<>(args));
 		});
+	}
+
+	/**
+	 * Reads a version.
+	 * <p>
+	 * No check that it is there: {@code property} raises one naming the property, and
+	 * {@code buildSrc} settles the same two properties before this build logic is even
+	 * compiled — anything missing has already stopped the build by now.
+	 * @param project the project to read from
+	 * @param name the property naming the version
+	 * @return the version it names
+	 */
+	private int version(Project project, String name) {
+		return Integer.parseInt(project.property(name).toString());
 	}
 
 	private void configureTests(Project project) {
@@ -120,21 +242,8 @@ class JavaConventions {
 			test.setMaxHeapSize("1536M");
 		});
 		project.getPlugins()
-			.withType(JavaPlugin.class, (javaPlugin) -> project.getDependencies()
+			.withType(JavaPlugin.class, (_) -> project.getDependencies()
 				.add(JavaPlugin.TEST_RUNTIME_ONLY_CONFIGURATION_NAME, "org.junit.platform:junit-platform-launcher"));
-	}
-
-	/**
-	 * Not applied under {@code apis}, where the sources are produced by protoc:
-	 * formatting generated code achieves nothing and is undone the next time the contract
-	 * is compiled.
-	 * @param project the project to configure
-	 */
-	private void configureFormatting(Project project) {
-		Project parent = project.getParent();
-		if (parent == null || !"apis".equals(parent.getName())) {
-			project.getPluginManager().apply(SpringJavaFormatPlugin.class);
-		}
 	}
 
 }

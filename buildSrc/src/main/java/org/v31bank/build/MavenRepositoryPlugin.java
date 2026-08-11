@@ -1,6 +1,28 @@
+/*
+ * Copyright 2026-present the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.v31bank.build;
 
 import java.io.File;
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Comparator;
+import java.util.stream.Stream;
 
 import org.gradle.api.Action;
 import org.gradle.api.Plugin;
@@ -66,14 +88,14 @@ public class MavenRepositoryPlugin implements Plugin<Project> {
 		project.getArtifacts().add(repository.getName(), location, (artifact) -> artifact.builtBy(publishTask));
 		DependencySet contents = repository.getDependencies();
 		project.getPlugins()
-			.withType(JavaPlugin.class, (javaPlugin) -> addProjectDependencies(project,
-					JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAME, contents));
+			.withType(JavaPlugin.class,
+					(_) -> addProjectDependencies(project, JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAME, contents));
 		project.getPlugins()
-			.withType(JavaLibraryPlugin.class, (javaLibraryPlugin) -> addProjectDependencies(project,
-					JavaPlugin.API_CONFIGURATION_NAME, contents));
+			.withType(JavaLibraryPlugin.class,
+					(_) -> addProjectDependencies(project, JavaPlugin.API_CONFIGURATION_NAME, contents));
 		project.getPlugins()
-			.withType(JavaPlatformPlugin.class, (javaPlatformPlugin) -> addProjectDependencies(project,
-					JavaPlatformPlugin.API_CONFIGURATION_NAME, contents));
+			.withType(JavaPlatformPlugin.class,
+					(_) -> addProjectDependencies(project, JavaPlatformPlugin.API_CONFIGURATION_NAME, contents));
 	}
 
 	/**
@@ -109,14 +131,24 @@ public class MavenRepositoryPlugin implements Plugin<Project> {
 			delete(this.location);
 		}
 
+		/**
+		 * Empties the repository, and says so when it cannot.
+		 * @param file the repository to remove
+		 */
 		private void delete(File file) {
-			File[] children = file.listFiles();
-			if (children != null) {
-				for (File child : children) {
-					delete(child);
+			Path root = file.toPath();
+			if (!Files.exists(root)) {
+				return;
+			}
+			try (Stream<Path> paths = Files.walk(root)) {
+				// Deepest first: a directory cannot go until it is empty.
+				for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
+					Files.delete(path);
 				}
 			}
-			file.delete();
+			catch (IOException ex) {
+				throw new UncheckedIOException("Failed to clear " + file, ex);
+			}
 		}
 	}
 

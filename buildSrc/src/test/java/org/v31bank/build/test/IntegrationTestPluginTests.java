@@ -1,17 +1,36 @@
+/*
+ * Copyright 2026-present the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.v31bank.build.test;
 
 import java.io.File;
-import java.util.List;
 
 import org.gradle.api.Project;
+import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.tasks.SourceSet;
+import org.gradle.api.tasks.SourceSetContainer;
 import org.gradle.api.tasks.testing.Test;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
 import org.gradle.plugins.ide.idea.model.IdeaModel;
 import org.gradle.plugins.ide.idea.model.IdeaModule;
 import org.gradle.testfixtures.ProjectBuilder;
 import org.junit.jupiter.api.io.TempDir;
+
+import org.v31bank.build.task.TaskDependencies;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -50,9 +69,9 @@ class IntegrationTestPluginTests {
 	void looksForSourcesUnderTheSourceSetsOwnDirectory() {
 		SourceSet intTest = intTestSourceSet(javaProject());
 		assertThat(intTest.getJava().getSrcDirs()).singleElement()
-				.satisfies((dir) -> assertThat(dir).hasName("java").hasParent(new File(this.directory, "src/intTest")));
+			.satisfies((dir) -> assertThat(dir).hasName("java").hasParent(new File(this.directory, "src/intTest")));
 		assertThat(intTest.getResources().getSrcDirs()).singleElement()
-				.satisfies((dir) -> assertThat(dir).hasName("resources"));
+			.satisfies((dir) -> assertThat(dir).hasName("resources"));
 	}
 
 	/**
@@ -102,8 +121,9 @@ class IntegrationTestPluginTests {
 	@org.junit.jupiter.api.Test
 	void runsAsPartOfCheck() {
 		Project project = javaProject();
-		assertThat(taskNames(project.getTasks().getByName(LifecycleBasePlugin.CHECK_TASK_NAME).getDependsOn()))
-				.contains(IntegrationTestPlugin.INT_TEST_TASK_NAME);
+		assertThat(TaskDependencies
+			.namesOf(project.getTasks().getByName(LifecycleBasePlugin.CHECK_TASK_NAME).getDependsOn()))
+			.contains(IntegrationTestPlugin.INT_TEST_TASK_NAME);
 	}
 
 	/**
@@ -114,9 +134,9 @@ class IntegrationTestPluginTests {
 	@org.junit.jupiter.api.Test
 	void yieldsToTheUnitTestsWithoutRequiringThem() {
 		Test task = intTestTask(javaProject());
-		assertThat(taskNames(task.getShouldRunAfter().getDependencies(task)))
-				.contains(org.gradle.api.plugins.JavaPlugin.TEST_TASK_NAME);
-		assertThat(taskNames(task.getDependsOn())).doesNotContain(org.gradle.api.plugins.JavaPlugin.TEST_TASK_NAME);
+		assertThat(TaskDependencies.namesOf(task.getShouldRunAfter().getDependencies(task)))
+			.contains(JavaPlugin.TEST_TASK_NAME);
+		assertThat(TaskDependencies.namesOf(task.getDependsOn())).doesNotContain(JavaPlugin.TEST_TASK_NAME);
 	}
 
 	/**
@@ -134,20 +154,7 @@ class IntegrationTestPluginTests {
 		});
 	}
 
-	/**
-	 * A task's declared dependencies hold whatever was passed to {@code dependsOn} — a
-	 * task, or a provider of one — so both shapes have to be unwrapped.
-	 * @param tasks the declared dependencies
-	 * @return their names
-	 */
-	private static List<String> taskNames(Iterable<?> tasks) {
-		return java.util.stream.StreamSupport.stream(tasks.spliterator(), false).map((task) -> {
-			Object resolved = (task instanceof org.gradle.api.provider.Provider<?> provider) ? provider.get() : task;
-			return (resolved instanceof org.gradle.api.Task named) ? named.getName() : String.valueOf(resolved);
-		}).toList();
-	}
-
-	private static org.gradle.api.tasks.SourceSetContainer sourceSets(Project project) {
+	private static SourceSetContainer sourceSets(Project project) {
 		return project.getExtensions().getByType(JavaPluginExtension.class).getSourceSets();
 	}
 
