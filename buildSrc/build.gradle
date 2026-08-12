@@ -69,6 +69,10 @@ gradlePlugin {
 			id = "org.v31bank.starter"
 			implementationClass = "org.v31bank.build.starters.StarterPlugin"
 		}
+		protobufPlugin {
+			id = "org.v31bank.protobuf"
+			implementationClass = "org.v31bank.build.ProtobufPlugin"
+		}
 		mavenRepositoryPlugin {
 			id = "org.v31bank.maven-repository"
 			implementationClass = "org.v31bank.build.MavenRepositoryPlugin"

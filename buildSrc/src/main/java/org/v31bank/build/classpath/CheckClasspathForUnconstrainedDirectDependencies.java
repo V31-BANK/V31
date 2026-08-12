@@ -16,6 +16,11 @@
 
 package org.v31bank.build.classpath;
 
+import java.util.ArrayDeque;
+import java.util.ArrayList;
+import java.util.Deque;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
@@ -24,7 +29,8 @@ import java.util.stream.Stream;
 import org.gradle.api.GradleException;
 import org.gradle.api.artifacts.component.ModuleComponentSelector;
 import org.gradle.api.artifacts.result.DependencyResult;
-import org.gradle.api.artifacts.result.ResolutionResult;
+import org.gradle.api.artifacts.result.ResolvedComponentResult;
+import org.gradle.api.artifacts.result.ResolvedDependencyResult;
 import org.gradle.api.tasks.TaskAction;
 
 /**
@@ -46,13 +52,40 @@ public abstract class CheckClasspathForUnconstrainedDirectDependencies extends C
 
 	@TaskAction
 	void checkForUnconstrainedDirectDependencies() {
-		ResolutionResult resolution = getConfiguration().getIncoming().getResolutionResult();
-		Set<String> unconstrained = moduleIds(resolution.getRoot().getDependencies().stream());
-		unconstrained
-			.removeAll(moduleIds(resolution.getAllDependencies().stream().filter(DependencyResult::isConstraint)));
+		ResolvedComponentResult root = getRootComponent().get();
+		Set<String> unconstrained = moduleIds(root.getDependencies().stream());
+		unconstrained.removeAll(moduleIds(everyEdgeFrom(root).filter(DependencyResult::isConstraint)));
 		if (!unconstrained.isEmpty()) {
 			throw new GradleException("Found unconstrained direct dependencies: " + unconstrained);
 		}
+	}
+
+	/**
+	 * Every edge in the graph, reached by walking it.
+	 * <p>
+	 * The resolution result would hand these over directly, but it cannot be carried into
+	 * a task's execution — only its root can. Walking from there reaches the same edges;
+	 * the visited set is what stops a cycle from doing so forever.
+	 * @param root where the graph starts
+	 * @return every dependency edge in it
+	 */
+	private Stream<? extends DependencyResult> everyEdgeFrom(ResolvedComponentResult root) {
+		Set<ResolvedComponentResult> seen = new HashSet<>();
+		List<DependencyResult> edges = new ArrayList<>();
+		Deque<ResolvedComponentResult> queue = new ArrayDeque<>(List.of(root));
+		while (!queue.isEmpty()) {
+			ResolvedComponentResult component = queue.removeFirst();
+			if (!seen.add(component)) {
+				continue;
+			}
+			for (DependencyResult edge : component.getDependencies()) {
+				edges.add(edge);
+				if (edge instanceof ResolvedDependencyResult resolved) {
+					queue.addLast(resolved.getSelected());
+				}
+			}
+		}
+		return edges.stream();
 	}
 
 	/**

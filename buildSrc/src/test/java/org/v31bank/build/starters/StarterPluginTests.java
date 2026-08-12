@@ -121,11 +121,13 @@ class StarterPluginTests {
 	@Test
 	void checksWhatTheConsumerActuallyEndsUpWith() {
 		Project starter = starter();
+		// The source rather than the files: what the check keeps is what the
+		// configuration resolves to, and asking for that here would resolve it.
 		Object runtimeClasspath = starter.getConfigurations()
 			.getByName(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME);
 		assertThat(CHECK_TASK_NAMES).allSatisfy((name) -> {
 			ClasspathCheck check = (ClasspathCheck) starter.getTasks().getByName(name);
-			assertThat(check.getClasspath()).isSameAs(runtimeClasspath);
+			assertThat(check.getClasspathFiles().getFrom()).containsExactly(runtimeClasspath);
 		});
 	}
 

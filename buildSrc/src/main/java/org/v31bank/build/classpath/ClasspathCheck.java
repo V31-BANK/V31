@@ -18,7 +18,9 @@ package org.v31bank.build.classpath;
 
 import org.gradle.api.DefaultTask;
 import org.gradle.api.artifacts.Configuration;
-import org.gradle.api.file.FileCollection;
+import org.gradle.api.artifacts.result.ResolvedComponentResult;
+import org.gradle.api.file.ConfigurableFileCollection;
+import org.gradle.api.provider.Property;
 import org.gradle.api.tasks.Classpath;
 import org.gradle.api.tasks.Internal;
 
@@ -30,16 +32,17 @@ import org.gradle.api.tasks.Internal;
  * These checks are the tests: they take a configuration, resolve it, and fail the build
  * on what they find.
  * <p>
- * The classpath is the only input, so declaring it as one is what makes these cheap
- * enough to leave attached to {@code check} — they are skipped entirely until something
- * about the resolved graph changes.
+ * What is kept is what the configuration resolved to, never the configuration itself. A
+ * {@link Configuration} cannot be carried into the execution of a task — the
+ * configuration cache cannot serialise one — so {@link #setClasspath} takes it apart at
+ * configuration time into the two things a check can actually want: the files, and the
+ * root of the resolved graph. Both are lazy, so neither costs anything until a check
+ * runs.
  *
  * @author Xander Wang
  * @since 0.2.0
  */
 public abstract class ClasspathCheck extends DefaultTask {
-
-	private Configuration classpath;
 
 	protected ClasspathCheck() {
 		// There is nothing to write, and a task that declares no output is never
@@ -48,23 +51,35 @@ public abstract class ClasspathCheck extends DefaultTask {
 		getOutputs().upToDateWhen((_) -> true);
 	}
 
+	/**
+	 * The only input, which is what makes these cheap enough to leave attached to
+	 * {@code check}: they are skipped until something about the resolved graph changes.
+	 * @return the files the configuration resolved to
+	 */
 	@Classpath
-	public FileCollection getClasspath() {
-		return this.classpath;
-	}
-
-	public void setClasspath(Configuration classpath) {
-		this.classpath = classpath;
-	}
+	public abstract ConfigurableFileCollection getClasspathFiles();
 
 	/**
-	 * The classpath as the configuration it came from, for the checks that need to ask
-	 * about the graph rather than the files it resolved to.
-	 * @return the configuration
+	 * The resolved graph, for the checks that need to ask what depends on what rather
+	 * than which files came out.
+	 * <p>
+	 * Not an input: the files already are one, and they change whenever the graph does.
+	 * @return the root of the resolved graph
 	 */
 	@Internal
-	protected Configuration getConfiguration() {
-		return this.classpath;
+	public abstract Property<ResolvedComponentResult> getRootComponent();
+
+	/**
+	 * Takes a configuration apart into the parts a check may keep.
+	 * <p>
+	 * Not a setter for {@link #getClasspathFiles()}, which is why that is not called
+	 * {@code getClasspath}: Gradle refuses to manage a property whose setter takes a
+	 * different type than its getter returns.
+	 * @param classpath the configuration to check
+	 */
+	public void setClasspath(Configuration classpath) {
+		getClasspathFiles().setFrom(classpath);
+		getRootComponent().set(classpath.getIncoming().getResolutionResult().getRootComponent());
 	}
 
 }

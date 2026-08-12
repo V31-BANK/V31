@@ -57,7 +57,7 @@ public abstract class CheckClasspathForConflicts extends ClasspathCheck {
 	@TaskAction
 	void checkForConflicts() throws IOException {
 		ClasspathContents contents = new ClasspathContents();
-		for (File file : getClasspath()) {
+		for (File file : getClasspathFiles()) {
 			if (file.isDirectory()) {
 				Path root = file.toPath();
 				try (Stream<Path> paths = Files.walk(root)) {

@@ -125,14 +125,11 @@ class JavaConventions {
 		project.getTasks().withType(Checkstyle.class).configureEach(this::excludeGeneratedSources);
 	}
 
-	/**
-	 * Neither tool has anything useful to say about code nobody wrote.
-	 * @param task the task to narrow
-	 */
 	private void excludeGeneratedSources(SourceTask task) {
 		task.exclude((candidate) -> {
 			String path = candidate.getFile().getPath().replace(File.separatorChar, '/');
-			return path.contains("/generated/sources/") || path.contains("/generated-source/");
+			return path.contains("/generated/sources/") || path.contains("/generated-source/")
+					|| path.contains("/apis/");
 		});
 	}
 

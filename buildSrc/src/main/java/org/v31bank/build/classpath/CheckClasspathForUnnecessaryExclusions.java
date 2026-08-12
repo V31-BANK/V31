@@ -17,7 +17,6 @@
 package org.v31bank.build.classpath;
 
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -27,13 +26,17 @@ import java.util.stream.Collectors;
 
 import org.gradle.api.GradleException;
 import org.gradle.api.artifacts.Configuration;
-import org.gradle.api.artifacts.ConfigurationContainer;
 import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.artifacts.ExcludeRule;
 import org.gradle.api.artifacts.ModuleDependency;
+import org.gradle.api.artifacts.component.ComponentArtifactIdentifier;
 import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
 import org.gradle.api.artifacts.dsl.DependencyHandler;
+import org.gradle.api.artifacts.result.ResolvedArtifactResult;
+import org.gradle.api.provider.MapProperty;
+import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.Input;
+import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.TaskAction;
 
 /**
@@ -67,31 +70,6 @@ public abstract class CheckClasspathForUnnecessaryExclusions extends ClasspathCh
 	 */
 	private static final String DEPENDENCIES = ":platform:V31-dependencies";
 
-	private final Map<String, Set<String>> exclusionsByDependencyId = new TreeMap<>();
-
-	private final Map<String, Dependency> dependencyById = new HashMap<>();
-
-	private final DependencyHandler dependencies;
-
-	private final ConfigurationContainer configurations;
-
-	private final Dependency platform;
-
-	public CheckClasspathForUnnecessaryExclusions() {
-		this.dependencies = getProject().getDependencies();
-		this.configurations = getProject().getConfigurations();
-		this.platform = this.dependencies.create(
-				this.dependencies.platform(this.dependencies.project(Collections.singletonMap("path", DEPENDENCIES))));
-	}
-
-	@Override
-	public void setClasspath(Configuration classpath) {
-		super.setClasspath(classpath);
-		this.exclusionsByDependencyId.clear();
-		this.dependencyById.clear();
-		classpath.getAllDependencies().all(this::processDependency);
-	}
-
 	/**
 	 * The exclusions themselves, as an input.
 	 * <p>
@@ -101,43 +79,82 @@ public abstract class CheckClasspathForUnnecessaryExclusions extends ClasspathCh
 	 * @return the exclusions declared by each dependency
 	 */
 	@Input
-	Map<String, Set<String>> getExclusionsByDependencyId() {
-		return this.exclusionsByDependencyId;
+	public abstract MapProperty<String, Set<String>> getExclusionsByDependencyId();
+
+	/**
+	 * What each of those dependencies actually brings in, resolved on its own.
+	 * <p>
+	 * Filled in with providers rather than values, so the standalone resolutions happen
+	 * when this check runs and not while every build is being configured. Not an input:
+	 * it is the answer being checked, and it is derived from the exclusions that already
+	 * are one.
+	 * @return the modules each dependency resolves to
+	 */
+	@Internal
+	public abstract MapProperty<String, Set<String>> getResolvedByDependencyId();
+
+	/**
+	 * Reads the exclusions off the classpath, and arranges for what each of those
+	 * dependencies resolves to on its own.
+	 * <p>
+	 * Both happen here, at configuration time, because both need the
+	 * {@link Configuration} and the project behind it — and neither may be carried into
+	 * the task's execution. What the execution gets is two maps of plain strings.
+	 * @param classpath the configuration to check
+	 */
+	@Override
+	public void setClasspath(Configuration classpath) {
+		super.setClasspath(classpath);
+		DependencyHandler dependencies = getProject().getDependencies();
+		Dependency platform = dependencies
+			.create(dependencies.platform(dependencies.project(Collections.singletonMap("path", DEPENDENCIES))));
+		classpath.getAllDependencies().all((dependency) -> {
+			if (!(dependency instanceof ModuleDependency moduleDependency)) {
+				return;
+			}
+			String id = getId(moduleDependency);
+			Set<String> exclusions = moduleDependency.getExcludeRules()
+				.stream()
+				.map(this::getId)
+				.collect(Collectors.toCollection(TreeSet::new));
+			getExclusionsByDependencyId().put(id, exclusions);
+			if (!exclusions.isEmpty()) {
+				getResolvedByDependencyId().put(id, resolveOnItsOwn(dependencies.create(id), platform));
+			}
+		});
 	}
 
-	private void processDependency(Dependency dependency) {
-		if (!(dependency instanceof ModuleDependency moduleDependency)) {
-			return;
-		}
-		String id = getId(moduleDependency);
-		Set<String> exclusions = moduleDependency.getExcludeRules()
-			.stream()
-			.map(this::getId)
-			.collect(Collectors.toCollection(TreeSet::new));
-		this.exclusionsByDependencyId.put(id, exclusions);
-		if (!exclusions.isEmpty()) {
-			this.dependencyById.put(id, this.dependencies.create(id));
-		}
+	/**
+	 * What one dependency brings in when nothing else is on the classpath.
+	 * @param dependency the dependency to resolve
+	 * @param platform the versions to resolve it against
+	 * @return the modules it resolves to, worked out when asked for
+	 */
+	private Provider<Set<String>> resolveOnItsOwn(Dependency dependency, Dependency platform) {
+		return getProject().getConfigurations()
+			.detachedConfiguration(dependency, platform)
+			.getIncoming()
+			.getArtifacts()
+			.getResolvedArtifacts()
+			.map((artifacts) -> artifacts.stream()
+				.map(ResolvedArtifactResult::getId)
+				.map(ComponentArtifactIdentifier::getComponentIdentifier)
+				.filter(ModuleComponentIdentifier.class::isInstance)
+				.map(ModuleComponentIdentifier.class::cast)
+				.map(this::getId)
+				.collect(Collectors.toCollection(TreeSet::new)));
 	}
 
 	@TaskAction
 	void checkForUnnecessaryExclusions() {
 		Map<String, Set<String>> unnecessary = new TreeMap<>();
-		this.exclusionsByDependencyId.forEach((id, exclusions) -> {
+		Map<String, Set<String>> resolved = getResolvedByDependencyId().get();
+		getExclusionsByDependencyId().get().forEach((id, exclusions) -> {
 			if (exclusions.isEmpty()) {
 				return;
 			}
 			Set<String> remaining = new TreeSet<>(exclusions);
-			this.configurations.detachedConfiguration(this.dependencyById.get(id), this.platform)
-				.getIncoming()
-				.getArtifacts()
-				.getArtifacts()
-				.stream()
-				.map((artifact) -> artifact.getId().getComponentIdentifier())
-				.filter(ModuleComponentIdentifier.class::isInstance)
-				.map(ModuleComponentIdentifier.class::cast)
-				.map(this::getId)
-				.forEach(remaining::remove);
+			remaining.removeAll(resolved.getOrDefault(id, Set.of()));
 			if (!remaining.isEmpty()) {
 				unnecessary.put(id, remaining);
 			}
