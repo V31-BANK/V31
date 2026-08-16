@@ -10,7 +10,4 @@
 	<suppress files="[\\/]src[\\/]intTest[\\/]java[\\/]" checks="SpringJavadoc"/>
 	<!-- Ignore package-level Javadoc requirements -->
 	<suppress checks="JavadocPackage"/>
-	<!-- Generated code, wherever it lands -->
-	<suppress files="[\\/]generated[\\/]" checks=".*"/>
-	<suppress files="[\\/]apis[\\/]" checks=".*"/>
 </suppressions>

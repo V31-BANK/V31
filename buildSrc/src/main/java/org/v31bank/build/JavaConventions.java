@@ -106,8 +106,7 @@ class JavaConventions {
 	private void excludeGeneratedSources(SourceTask task) {
 		task.exclude((candidate) -> {
 			String path = candidate.getFile().getPath().replace(File.separatorChar, '/');
-			return path.contains("/generated/sources/") || path.contains("/generated-source/")
-					|| path.contains("/apis/");
+			return path.contains("/apis/");
 		});
 	}
 
@@ -133,17 +132,9 @@ class JavaConventions {
 		dependencyManagement.getDependencies().add(platform);
 	}
 
-	/**
-	 * The protobuf plugin resolves {@code protobuf-java} and the gRPC artifacts through
-	 * {@code compileProtoPath} and {@code testCompileProtoPath}, so matching only names
-	 * ending in {@code Classpath} leaves the API projects unable to resolve anything.
-	 * @param configuration the configuration to consider
-	 * @return whether it takes its versions from the platform
-	 */
 	private static boolean needsManagedVersions(Configuration configuration) {
 		String name = configuration.getName();
-		return name.endsWith("Classpath") || name.endsWith("ProtoPath")
-				|| JavaPlugin.ANNOTATION_PROCESSOR_CONFIGURATION_NAME.equals(name);
+		return name.endsWith("Classpath") || JavaPlugin.ANNOTATION_PROCESSOR_CONFIGURATION_NAME.equals(name);
 	}
 
 	/**
