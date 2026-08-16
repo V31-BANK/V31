@@ -42,11 +42,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link MavenRepositoryPlugin}.
- * <p>
- * The repository exists so that the build can resolve V31 the way a consumer does — by
- * coordinate, out of a repository — without publishing anywhere real. Most of what is
- * asserted here is about what ends up <em>in</em> it: a project's own artifacts are not
- * enough, because whoever resolves them needs the V31 projects behind them too.
  *
  * @author Xander Wang
  * @since 0.2.0
@@ -63,10 +58,6 @@ class MavenRepositoryPluginTests {
 		assertThat(project().getPlugins().hasPlugin(MavenPublishPlugin.class)).isTrue();
 	}
 
-	/**
-	 * Inside the build directory, and nowhere near the developer's {@code ~/.m2}, where
-	 * an artifact from a build would outlive it and be resolved by something else.
-	 */
 	@Test
 	void publishesIntoTheBuildDirectory() {
 		Project project = project();
@@ -79,10 +70,6 @@ class MavenRepositoryPluginTests {
 		assertThat(repository(project()).getName()).isEqualTo("project");
 	}
 
-	/**
-	 * The repository is only worth offering once there is a publication to put in it.
-	 * Applied on its own the plugin adds the repository and stops.
-	 */
 	@Test
 	void offersNothingUntilThereIsAPublicationToPut() {
 		Project project = project();
@@ -98,10 +85,6 @@ class MavenRepositoryPluginTests {
 			.isNotNull();
 	}
 
-	/**
-	 * Asking for the configuration is what runs the publish task, so a consumer never has
-	 * to know the path or the order.
-	 */
 	@Test
 	void buildsTheRepositoryByPublishingIntoIt() {
 		Project project = deployedProject();
@@ -111,11 +94,6 @@ class MavenRepositoryPluginTests {
 			.contains(PUBLISH_TASK_NAME);
 	}
 
-	/**
-	 * Resolving one project from the result must not stop at the first project
-	 * dependency, so each one is pulled in through its own repository rather than as an
-	 * ordinary dependency.
-	 */
 	@Test
 	void pullsInTheRepositoriesOfTheProjectsItDependsOn() {
 		Project project = deployedProject();
@@ -129,11 +107,6 @@ class MavenRepositoryPluginTests {
 			});
 	}
 
-	/**
-	 * A rename or a removal would otherwise leave the old artifact in the repository for
-	 * something to go on resolving against, which is the one failure a throwaway
-	 * repository is supposed to make impossible.
-	 */
 	@Test
 	void emptiesTheRepositoryBeforePublishingIntoIt() throws IOException {
 		Project project = deployedProject();
@@ -147,10 +120,6 @@ class MavenRepositoryPluginTests {
 		assertThat(buildDirectory(project, "maven-repository")).doesNotExist();
 	}
 
-	/**
-	 * The first build has nothing to clear, and a repository that was never created is
-	 * not a failure.
-	 */
 	@Test
 	void clearsARepositoryThatIsNotThereYetWithoutComplaining() {
 		Project project = deployedProject();
@@ -160,8 +129,7 @@ class MavenRepositoryPluginTests {
 
 	@SuppressWarnings("unchecked")
 	private static void runFirstActionOf(Task task) {
-		// The publish action itself would need a real repository behind it; only the
-		// doFirst this plugin adds is under test, and it is the one at the front.
+		// The publish action itself would need a real repository behind it.
 		((Action<Task>) task.getActions().get(0)).execute(task);
 	}
 
@@ -184,14 +152,9 @@ class MavenRepositoryPluginTests {
 		return project;
 	}
 
-	/**
-	 * The publish task the plugin waits for is created by the publication, which is
-	 * {@link DeployedPlugin}'s job — so everything past the repository itself is only
-	 * reachable through a project that is actually deployed.
-	 * @return a project that publishes
-	 */
 	private Project deployedProject() {
 		Project root = ProjectBuilder.builder().withName("V31").withProjectDir(this.directory).build();
+		// A test depends on this project by path, so it has to exist first.
 		ProjectBuilder.builder().withName("V31-core").withParent(root).build();
 		Project project = ProjectBuilder.builder().withName("V31-web").withParent(root).build();
 		project.getPlugins().apply("java-library");

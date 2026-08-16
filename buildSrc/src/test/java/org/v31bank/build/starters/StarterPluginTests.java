@@ -38,11 +38,6 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link StarterPlugin}.
- * <p>
- * A starter has no code, so there is nothing in one to unit test. What these cover is the
- * other half of that sentence: because there is nothing to test, the checks have to be
- * there and have to be attached to {@code check}, or a starter is the one kind of project
- * in the build that nothing verifies at all.
  *
  * @author Xander Wang
  * @since 0.2.0
@@ -55,11 +50,6 @@ class StarterPluginTests {
 	@TempDir
 	private File directory;
 
-	/**
-	 * A starter hands its dependencies on rather than hiding them, which is the whole
-	 * point of one — {@code java} alone would put them on {@code implementation}, where a
-	 * consumer never sees them.
-	 */
 	@Test
 	void makesTheStarterALibrary() {
 		assertThat(starter().getPlugins().hasPlugin(JavaLibraryPlugin.class)).isTrue();
@@ -94,10 +84,6 @@ class StarterPluginTests {
 			.isInstanceOf(CheckClasspathForUnnecessaryExclusions.class);
 	}
 
-	/**
-	 * A check nobody runs is a check that does not exist, and nobody types
-	 * {@code checkRuntimeClasspathForUnnecessaryExclusions}.
-	 */
 	@Test
 	void runsEveryCheckAsPartOfCheck() {
 		Project starter = starter();
@@ -113,16 +99,11 @@ class StarterPluginTests {
 			.isEqualTo(LifecycleBasePlugin.VERIFICATION_GROUP));
 	}
 
-	/**
-	 * The runtime classpath, because that is what a consumer gets. Checking the compile
-	 * classpath would miss every runtime-only dependency, which for a starter is most of
-	 * them.
-	 */
 	@Test
 	void checksWhatTheConsumerActuallyEndsUpWith() {
 		Project starter = starter();
-		// The source rather than the files: what the check keeps is what the
-		// configuration resolves to, and asking for that here would resolve it.
+		// Held as the source, because asking for the files would resolve the
+		// configuration.
 		Object runtimeClasspath = starter.getConfigurations()
 			.getByName(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME);
 		assertThat(CHECK_TASK_NAMES).allSatisfy((name) -> {
@@ -136,11 +117,6 @@ class StarterPluginTests {
 		assertThat(starter().getTasks().findByName("starterMetadata")).isInstanceOf(StarterMetadata.class);
 	}
 
-	/**
-	 * Offered through a configuration rather than put in the jar: a consumer asks for
-	 * {@code starterMetadata} and gets the file, and the artifact says which task builds
-	 * it, so nobody has to know the path or the order.
-	 */
 	@Test
 	void offersTheMetadataThroughAConfigurationOfItsOwn() {
 		Project starter = starter();
@@ -151,10 +127,6 @@ class StarterPluginTests {
 				.contains("starterMetadata"));
 	}
 
-	/**
-	 * The starter's own graph, not a copy of it: the check has to fail when a dependency
-	 * is added to the build file, which is the only way it can be added.
-	 */
 	@Test
 	void describesWhatTheStarterResolvesTo() {
 		Project starter = starter();
@@ -164,18 +136,15 @@ class StarterPluginTests {
 		assertThat(metadata.getStarterName().get()).isEqualTo("V31-web-spring-boot-starter");
 	}
 
-	/**
-	 * The conventions and the exclusions check both reach for a platform by path, so the
-	 * hierarchy has to exist before a starter can be configured at all.
-	 * @return a configured starter
-	 */
 	private Project starter() {
+		// Both platform projects are reached by path, so they have to exist first.
 		Project root = ProjectBuilder.builder().withName("V31").withProjectDir(this.directory).build();
 		Project platform = ProjectBuilder.builder().withName("platform").withParent(root).build();
 		ProjectBuilder.builder().withName("V31-internal-dependencies").withParent(platform).build();
 		ProjectBuilder.builder().withName("V31-dependencies").withParent(platform).build();
 		Project starter = ProjectBuilder.builder().withName("V31-web-spring-boot-starter").withParent(root).build();
-		// Supplied by gradle.properties in the real build, and by nothing at all here.
+		// Supplied by gradle.properties in the real build; the conventions read them,
+		// never default.
 		starter.getExtensions().getExtraProperties().set("buildJavaVersion", "25");
 		starter.getExtensions().getExtraProperties().set("runtimeJavaVersion", "25");
 		starter.getExtensions().getExtraProperties().set("checkstyleToolVersion", "12.3.1");

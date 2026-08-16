@@ -87,12 +87,15 @@ public class ProtobufPlugin implements Plugin<Project> {
 
 	private static final String GRPC_JAVA_GENERATOR_VERSION = "grpcJavaGeneratorVersion";
 
-	/** Where buf and the generators it runs are installed, and the path {@code buf.gen.yaml} names. */
+	/**
+	 * Where buf and the generators it runs are installed, and the path
+	 * {@code buf.gen.yaml} names.
+	 */
 	private static final String TOOLS = "buf";
 
 	/**
-	 * Added to {@code api} rather than {@code implementation}: the generated types are the
-	 * API, so anything depending on this project names them.
+	 * Added to {@code api} rather than {@code implementation}: the generated types are
+	 * the API, so anything depending on this project names them.
 	 */
 	private static final List<String> RUNTIME = List.of("com.google.protobuf:protobuf-java", "io.grpc:grpc-protobuf",
 			"io.grpc:grpc-stub");
@@ -110,14 +113,15 @@ public class ProtobufPlugin implements Plugin<Project> {
 			.filter((api) -> project.getName().contains(api.name()))
 			.toList();
 		if (matches.size() > 1) {
-			throw new GradleException(project.getPath() + " is named after more than one API "
-					+ matches.stream().map(Api::name).toList() + ", so which one it wants cannot be read from its name.");
+			throw new GradleException(
+					project.getPath() + " is named after more than one API " + matches.stream().map(Api::name).toList()
+							+ ", so which one it wants cannot be read from its name.");
 		}
 		return matches.stream().findFirst();
 	}
 
 	private Stream<Api> apisIn(File root) {
-		// null covers both a missing and a non-directory path, so a build with no proto directory needs no other check.
+		// null covers both a missing path and a non-directory one.
 		File[] directories = new File(root, APIS).listFiles();
 		return (directories != null) ? Stream.of(directories)
 			.filter((file) -> file.isDirectory() && !file.getName().startsWith("."))
@@ -127,14 +131,13 @@ public class ProtobufPlugin implements Plugin<Project> {
 	private void generate(Project project, Api api) {
 		TaskProvider<DownloadProtoTools> tools = tools(project.getRootProject());
 		Provider<RegularFile> buf = tools.flatMap(DownloadProtoTools::getInstalledBuf);
-		TaskProvider<GenerateProtoSources> generate = bufTask(project, GENERATE_TASK_NAME,
-				GenerateProtoSources.class, api, buf, (task) -> {
+		TaskProvider<GenerateProtoSources> generate = bufTask(project, GENERATE_TASK_NAME, GenerateProtoSources.class,
+				api, buf, (task) -> {
 					task.setDescription("Generates this project's sources from the " + api.name() + " proto.");
 					task.getProtoc().set(tools.flatMap(DownloadProtoTools::getInstalledProtoc));
 					task.getGrpcJavaGenerator().set(tools.flatMap(DownloadProtoTools::getInstalledGrpcJavaGenerator));
 					task.getDestination().set(mainSourceDirectory(project));
-					task.getManifest()
-						.set(project.getLayout().getBuildDirectory().file("proto/generated-sources.txt"));
+					task.getManifest().set(project.getLayout().getBuildDirectory().file("proto/generated-sources.txt"));
 				});
 		project.getTasks().named(JavaPlugin.COMPILE_JAVA_TASK_NAME).configure((compile) -> compile.dependsOn(generate));
 		TaskProvider<LintProto> lint = bufTask(project, LINT_TASK_NAME, LintProto.class, api, buf, (task) -> {
@@ -167,7 +170,7 @@ public class ProtobufPlugin implements Plugin<Project> {
 	}
 
 	private Provider<RegularFile> fromMaven(Project project, String coordinate, String version) {
-		// buf can fetch the generators from its own registry, which answered resource_exhausted once every build called it.
+		// buf's own registry answered resource_exhausted once every build called it.
 		String full = coordinate + ":" + project.property(version) + ":" + platform() + "@exe";
 		Configuration resolved = project.getConfigurations()
 			.detachedConfiguration(project.getDependencies().create(full));

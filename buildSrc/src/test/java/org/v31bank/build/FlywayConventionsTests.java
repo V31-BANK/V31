@@ -42,9 +42,9 @@ import static org.assertj.core.api.Assertions.tuple;
 /**
  * Tests for {@link FlywayConventions}.
  * <p>
- * The conventions react to the Spring Boot plugin rather than being applied outright, so
- * each test applies them first and the plugin afterwards — the order the real build uses,
- * where the root applies conventions before a subproject's own build file has run.
+ * Each test applies the conventions first and the Spring Boot plugin second, the order
+ * the real build uses: the root applies the conventions before a subproject's own build
+ * file has run.
  *
  * @author Xander Wang
  * @since 0.2.0
@@ -58,11 +58,6 @@ class FlywayConventionsTests {
 	@TempDir
 	private File directory;
 
-	/**
-	 * A library, a starter and an auto-configuration module have no database. Registering
-	 * the task for them would put a name in {@code ./gradlew tasks} that never has
-	 * anything to do, and Flyway on a classpath with no use for it.
-	 */
 	@Test
 	void leavesAProjectThatIsNotASpringBootApplicationAlone() {
 		givenAMigration();
@@ -90,11 +85,6 @@ class FlywayConventionsTests {
 			.satisfies((file) -> assertThat(file).hasName(MIGRATION));
 	}
 
-	/**
-	 * Flyway scans {@code db/migration} recursively and V31 groups the migrations into a
-	 * directory per year, so a check that only looked one level down would pass on
-	 * everything written after the first January.
-	 */
 	@Test
 	void looksInsideTheYearDirectories() {
 		givenAMigration();
@@ -102,10 +92,6 @@ class FlywayConventionsTests {
 		assertThat(migrationsOf(springBootProject())).hasSize(2);
 	}
 
-	/**
-	 * The README beside the migrations is the convention they are checked against, and it
-	 * is not one of them.
-	 */
 	@Test
 	void ignoresWhateverElseSitsBesideTheMigrations() {
 		givenAMigration();
@@ -120,11 +106,6 @@ class FlywayConventionsTests {
 		assertThat(migrationsOf(springBootProject())).isEmpty();
 	}
 
-	/**
-	 * Matched against the main resources rather than against a hard-coded
-	 * {@code src/main/resources}. A project that adds a resource directory would
-	 * otherwise leave the check scanning nothing, and a check that finds nothing passes.
-	 */
 	@Test
 	void followsTheResourcesWhereverTheProjectPutsThem() {
 		Project project = springBootProject();
@@ -133,30 +114,18 @@ class FlywayConventionsTests {
 		assertThat(migrationsOf(project)).singleElement().satisfies((file) -> assertThat(file).hasName(MIGRATION));
 	}
 
-	/**
-	 * A migration reaches an environment by being on the classpath, and this is where it
-	 * gets there — so checking first is what keeps a broken name out of the jar.
-	 */
 	@Test
 	void runsBeforeTheMigrationsAreCopiedIntoTheJar() {
 		Task processResources = springBootProject().getTasks().getByName(JavaPlugin.PROCESS_RESOURCES_TASK_NAME);
 		assertThat(TaskDependencies.namesOf(processResources.getDependsOn())).contains(TASK_NAME);
 	}
 
-	/**
-	 * A failure that only ever surfaces while packaging reads as a packaging problem,
-	 * when it is a verification one.
-	 */
 	@Test
 	void runsAsPartOfCheck() {
 		Task check = springBootProject().getTasks().getByName(LifecycleBasePlugin.CHECK_TASK_NAME);
 		assertThat(TaskDependencies.namesOf(check.getDependsOn())).contains(TASK_NAME);
 	}
 
-	/**
-	 * The task declares no other output, and one that declares none is never considered
-	 * up to date.
-	 */
 	@Test
 	void writesItsReportIntoTheBuildDirectory() {
 		Project project = springBootProject();
@@ -174,20 +143,11 @@ class FlywayConventionsTests {
 					tuple("org.flywaydb", "flyway-database-postgresql"));
 	}
 
-	/**
-	 * Flyway would start, find nothing to apply, and leave the service carrying a
-	 * migration tool it has no use for.
-	 */
 	@Test
 	void leavesFlywayOffAServiceThatShipsNone() {
 		assertThat(runtimeOnly(springBootProject())).isEmpty();
 	}
 
-	/**
-	 * Whether there are migrations is answered when the classpath is resolved rather than
-	 * while the build is being configured, so the first one a service ever writes takes
-	 * effect without a sync.
-	 */
 	@Test
 	void noticesAMigrationWrittenAfterTheProjectWasConfigured() {
 		Project project = springBootProject();

@@ -39,9 +39,9 @@ import org.gradle.api.tasks.TaskAction;
  * Generates one API's sources into the project.
  * <p>
  * buf writes into a staging directory first, so the files it produced can be recorded
- * before they are copied. The next run deletes exactly what that record names, so a message
- * dropped from the {@code .proto} takes its class with it instead of leaving one behind
- * that still compiles.
+ * before they are copied. The next run deletes exactly what that record names, so a
+ * message dropped from the {@code .proto} takes its class with it instead of leaving one
+ * behind that still compiles.
  *
  * @author Xander Wang
  * @since 0.2.0
@@ -80,8 +80,9 @@ public abstract class GenerateProtoSources extends BufTask {
 	public abstract RegularFileProperty getGrpcJavaGenerator();
 
 	/**
-	 * Not declared as an output: {@code compileJava} reads this directory, and declaring it
-	 * would make every generated file something one task produces and another consumes.
+	 * Not declared as an output: {@code compileJava} reads this directory, and declaring
+	 * it would make every generated file something one task produces and another
+	 * consumes.
 	 * @return the directory the generated sources are copied into
 	 */
 	@Internal
@@ -97,7 +98,7 @@ public abstract class GenerateProtoSources extends BufTask {
 	void generate() throws IOException {
 		removeWhatTheLastRunWrote();
 		Path staging = getTemporaryDir().toPath().resolve("generated");
-		// Safe to take whole, unlike the destination: staging holds only the last run's output.
+		// Staging holds only the last run's output, so it is safe to take whole.
 		getFileSystemOperations().delete((spec) -> spec.delete(staging));
 		Files.createDirectories(staging);
 		buf("generate", "--path", getApi().get(), "--output", staging.toString(), "--template", template());
@@ -110,8 +111,8 @@ public abstract class GenerateProtoSources extends BufTask {
 	}
 
 	/**
-	 * The destination is a source directory, so deleting all of it would take whatever else
-	 * lives there; only the files the manifest names go.
+	 * The destination is a source directory, so deleting all of it would take whatever
+	 * else lives there; only the files the manifest names go.
 	 * @throws IOException if the manifest cannot be read
 	 */
 	private void removeWhatTheLastRunWrote() throws IOException {
@@ -125,8 +126,9 @@ public abstract class GenerateProtoSources extends BufTask {
 	}
 
 	/**
-	 * buf takes its instructions as a file and nothing else, so {@link #TEMPLATE} is written
-	 * out on every run, into the temporary directory where nobody will maintain it by hand.
+	 * buf takes its instructions as a file and nothing else, so {@link #TEMPLATE} is
+	 * written out on every run, into the temporary directory where nobody will maintain
+	 * it by hand.
 	 * @return the path to hand buf
 	 */
 	private String template() {

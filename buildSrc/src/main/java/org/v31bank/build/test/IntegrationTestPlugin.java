@@ -41,8 +41,9 @@ import org.gradle.plugins.ide.idea.model.IdeaModule;
  * }
  * </pre>
  *
- * Kept apart from {@code test} because these tests are slow and depend on the environment,
- * and a failure here points at how the build assembles or publishes rather than at the code.
+ * Kept apart from {@code test} because these tests are slow and depend on the
+ * environment, and a failure here points at how the build assembles or publishes rather
+ * than at the code.
  *
  * @author Xander Wang
  * @since 0.2.0

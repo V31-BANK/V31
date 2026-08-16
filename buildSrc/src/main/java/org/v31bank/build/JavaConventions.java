@@ -79,7 +79,8 @@ class JavaConventions {
 
 	/**
 	 * The formatter rewrites the file, so its shape is never discussed; checkstyle limits
-	 * what the code may do. Its rules ship with the formatter, so the two cannot disagree.
+	 * what the code may do. Its rules ship with the formatter, so the two cannot
+	 * disagree.
 	 * @param project the project to configure
 	 */
 	private void configureSpringJavaFormat(Project project) {

@@ -28,13 +28,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Tests for {@link DeployedPlugin}.
  * <p>
- * A project declares this plugin for itself, so there is no rule here about which
- * projects publish — applying it is the decision. What is tested is what applying it
- * does, in the order it happens: the plugin arrives before the project's own build file
- * has said whether it is a library or a platform.
- * <p>
- * That the right component actually reaches the publication is asserted by the build
- * itself, which publishes a jar for every library and a pom for the platform.
+ * Each test applies the plugin before saying whether the project is a library or a
+ * platform, because the plugin has to cope with a component that does not exist yet.
  *
  * @author Xander Wang
  * @since 0.2.0
@@ -67,10 +62,6 @@ class DeployedPluginTests {
 		assertThat(publishing(project).getPublications().getNames()).containsExactly("v31");
 	}
 
-	/**
-	 * Neither component exists yet when the plugin is applied, which is why it has to
-	 * pick one up whenever it appears rather than look for it on the spot.
-	 */
 	@Test
 	void findsNoComponentWhenApplied() {
 		Project project = project();
@@ -78,10 +69,6 @@ class DeployedPluginTests {
 		assertThat(project.getComponents().findByName("javaPlatform")).isNull();
 	}
 
-	/**
-	 * Gradle otherwise refuses metadata whose dependencies carry no version. Here that is
-	 * the intended shape: the versions live in the BOM a consumer imports.
-	 */
 	@Test
 	void allowsTheVersionLessDependenciesTheBomExistsToSupply() {
 		Project project = project();

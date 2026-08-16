@@ -89,8 +89,8 @@ class FlywayConventions {
 	}
 
 	/**
-	 * Runs before {@code processResources} to keep a broken name out of the jar, and under
-	 * {@code check} so the failure reads as verification rather than packaging.
+	 * Runs before {@code processResources} to keep a broken name out of the jar, and
+	 * under {@code check} so the failure reads as verification rather than packaging.
 	 * @param project the project to configure
 	 * @param check the check to attach
 	 */

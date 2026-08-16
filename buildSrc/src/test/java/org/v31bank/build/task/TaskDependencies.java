@@ -25,10 +25,8 @@ import org.gradle.api.provider.Provider;
 /**
  * Reads the names out of a task's declared dependencies.
  * <p>
- * {@code dependsOn} hands back whatever it was given, unchanged — a task, a provider of
- * one, or a name — so a test that wants to say which task it found has to unwrap all
- * three. Every plugin here attaches something to {@code check}, so every plugin's tests
- * ask this same question.
+ * {@code dependsOn} hands back whatever it was given, so a dependency arrives as a task,
+ * as a provider of one, or as a bare name.
  *
  * @author Xander Wang
  * @since 0.2.0
@@ -38,10 +36,6 @@ public final class TaskDependencies {
 	private TaskDependencies() {
 	}
 
-	/**
-	 * @param dependencies whatever {@code dependsOn} or a task dependency set returned
-	 * @return the name of each task among them
-	 */
 	public static List<String> namesOf(Iterable<?> dependencies) {
 		return StreamSupport.stream(dependencies.spliterator(), false).map(TaskDependencies::nameOf).toList();
 	}

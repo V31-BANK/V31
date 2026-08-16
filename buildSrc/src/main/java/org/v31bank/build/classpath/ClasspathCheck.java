@@ -38,7 +38,8 @@ import org.gradle.api.tasks.Internal;
 public abstract class ClasspathCheck extends DefaultTask {
 
 	protected ClasspathCheck() {
-		// A task that declares no output is never up to date, so the input never gets to decide.
+		// A task that declares no output is never up to date, so the input never gets to
+		// decide.
 		getOutputs().upToDateWhen((_) -> true);
 	}
 

@@ -74,7 +74,8 @@ public class MavenRepositoryPlugin implements Plugin<Project> {
 	}
 
 	private void setUpProjectRepository(Project project, Task publishTask, File location) {
-		// Emptied first, so a rename or a removal leaves no stale artifact to resolve against.
+		// Emptied first, so a rename or a removal leaves no stale artifact to resolve
+		// against.
 		publishTask.doFirst(new CleanAction(location));
 		Configuration repository = project.getConfigurations().create(MAVEN_REPOSITORY_CONFIGURATION_NAME);
 		project.getArtifacts().add(repository.getName(), location, (artifact) -> artifact.builtBy(publishTask));

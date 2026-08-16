@@ -53,8 +53,7 @@ public class DeployedPlugin implements Plugin<Project> {
 		project.getPluginManager().apply(MavenRepositoryPlugin.class);
 		PublishingExtension publishing = project.getExtensions().getByType(PublishingExtension.class);
 		MavenPublication publication = publishing.getPublications().create(PUBLICATION_NAME, MavenPublication.class);
-		// Matched rather than looked up: a subproject's build file runs after this, so the
-		// component does not exist yet.
+		// Matched, not looked up: the subproject's build file runs after this.
 		publishComponent(project, publication, JavaPlugin.class, "java");
 		publishComponent(project, publication, JavaPlatformPlugin.class, "javaPlatform");
 		allowDependenciesWithoutVersions(project);

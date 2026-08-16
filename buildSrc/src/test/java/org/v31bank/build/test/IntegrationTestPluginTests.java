@@ -37,10 +37,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 /**
  * Tests for {@link IntegrationTestPlugin}.
  * <p>
- * The plugin reacts to the java plugin rather than requiring it first, because the root
- * build applies conventions before a project's own build file has run. Each test
- * therefore applies this plugin first and {@code java} second, which is the order that
- * actually occurs.
+ * Each test applies this plugin before {@code java}, because it reacts to the java plugin
+ * rather than requiring it to be there already.
  *
  * @author Xander Wang
  * @since 0.2.0
@@ -62,9 +60,6 @@ class IntegrationTestPluginTests {
 		assertThat(sourceSets(project).findByName(IntegrationTestPlugin.INT_TEST_SOURCE_SET_NAME)).isNotNull();
 	}
 
-	/**
-	 * Declared, not created: a source directory that does not exist is simply empty.
-	 */
 	@org.junit.jupiter.api.Test
 	void looksForSourcesUnderTheSourceSetsOwnDirectory() {
 		SourceSet intTest = intTestSourceSet(javaProject());
@@ -74,10 +69,6 @@ class IntegrationTestPluginTests {
 			.satisfies((dir) -> assertThat(dir).hasName("resources"));
 	}
 
-	/**
-	 * Without this an IDE imports the source set as production code, and the analysers
-	 * that run there report every assertion in it as an assertion in production code.
-	 */
 	@org.junit.jupiter.api.Test
 	void tellsTheIdeTheSourcesAreTests() {
 		Project project = javaProject();
@@ -87,10 +78,6 @@ class IntegrationTestPluginTests {
 		assertThat(module.getTestResources().getFiles()).containsAll(intTest.getResources().getSrcDirs());
 	}
 
-	/**
-	 * A new source set does not see {@code main} the way {@code test} does, so it has to
-	 * be given it.
-	 */
 	@org.junit.jupiter.api.Test
 	void compilesAgainstTheProjectsOwnClasses() {
 		Project project = javaProject();
@@ -114,10 +101,6 @@ class IntegrationTestPluginTests {
 		assertThat(task.getDescription()).isEqualTo("Runs integration tests.");
 	}
 
-	/**
-	 * Otherwise it is a task somebody has to remember, which is the same as one that
-	 * never runs.
-	 */
 	@org.junit.jupiter.api.Test
 	void runsAsPartOfCheck() {
 		Project project = javaProject();
@@ -126,11 +109,6 @@ class IntegrationTestPluginTests {
 			.contains(IntegrationTestPlugin.INT_TEST_TASK_NAME);
 	}
 
-	/**
-	 * Ordered after the unit tests rather than depending on them: these are the slow
-	 * ones, so the cheap failure should surface first — but asking for them alone must
-	 * not drag the unit tests along.
-	 */
 	@org.junit.jupiter.api.Test
 	void yieldsToTheUnitTestsWithoutRequiringThem() {
 		Test task = intTestTask(javaProject());
@@ -139,11 +117,6 @@ class IntegrationTestPluginTests {
 		assertThat(TaskDependencies.namesOf(task.getDependsOn())).doesNotContain(JavaPlugin.TEST_TASK_NAME);
 	}
 
-	/**
-	 * Gradle discovers nothing without it, and reports that as "no tests found" rather
-	 * than as a missing dependency. The conventions add it to {@code test} only, which is
-	 * a different source set with a configuration of its own.
-	 */
 	@org.junit.jupiter.api.Test
 	void putsTheLauncherOnTheRuntimeClasspath() {
 		Project project = javaProject();
