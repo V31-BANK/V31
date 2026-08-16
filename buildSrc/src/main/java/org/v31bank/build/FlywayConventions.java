@@ -32,12 +32,9 @@ import org.gradle.language.base.plugins.LifecycleBasePlugin;
 /**
  * Conventions for the services whose schema is owned by Flyway.
  * <p>
- * A migration is checked here because here is the last moment it is still cheap. Flyway
- * records a version the first time it applies one, so by the time a duplicate or a
- * malformed name is noticed in an environment, the fix is a manual repair of
- * {@code flyway_schema_history} in every environment that got there first. Nor does a
- * test catch it, because it is not about what the SQL says — it is about the files as a
- * set, which is what a build can see and a running service cannot.
+ * Migration names are checked at build time because Flyway records a version the first
+ * time it applies one. Once a bad name has been applied, the fix is a manual repair of
+ * {@code flyway_schema_history} in every environment that got there first.
  *
  * @author Xander Wang
  * @since 0.2.0
@@ -59,13 +56,9 @@ class FlywayConventions {
 	}
 
 	/**
-	 * Gives a service that ships migrations what it takes to apply them.
-	 * <p>
-	 * Added through a provider, so that whether there are any is answered when the
-	 * classpath is resolved rather than while the build is being configured. A directory
-	 * created after configuration would otherwise be missed until the next sync, and
-	 * missed silently — the service would start, find no Flyway, and run against whatever
-	 * schema it was pointed at.
+	 * Uses a provider so that whether the project has migrations is answered when the
+	 * classpath resolves rather than during configuration, where a directory added later
+	 * would be missed until the next sync.
 	 * @param project the project to configure
 	 */
 	private void addTheRuntimeAMigrationNeeds(Project project) {
@@ -96,13 +89,8 @@ class FlywayConventions {
 	}
 
 	/**
-	 * Hangs the check off {@code processResources} and off {@code check}.
-	 * <p>
-	 * Both, for different reasons. A migration reaches an environment by being on the
-	 * classpath and {@code processResources} is where it gets there, so checking first is
-	 * what keeps a broken name out of the jar. And {@code check} is what a developer and
-	 * CI run to ask whether anything is wrong — a failure that only ever surfaces while
-	 * packaging reads as a packaging problem, when it is a verification one.
+	 * Runs before {@code processResources} to keep a broken name out of the jar, and under
+	 * {@code check} so the failure reads as verification rather than packaging.
 	 * @param project the project to configure
 	 * @param check the check to attach
 	 */

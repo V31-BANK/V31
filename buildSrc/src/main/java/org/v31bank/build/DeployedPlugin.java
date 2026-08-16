@@ -37,10 +37,8 @@ import org.gradle.api.publish.tasks.GenerateModuleMetadata;
  * }
  * </pre>
  *
- * Applying it is the decision — there is no rule elsewhere inferring which projects
- * publish from where they sit or what they are called. A {@code -service} is an
- * application and simply does not declare it; nor does the internal platform, whose
- * versions reach a consumer through {@code V31-dependencies} instead.
+ * Applying it is the decision: nothing infers which projects publish from where they sit
+ * or what they are called.
  *
  * @author Xander Wang
  * @since 0.2.0
@@ -55,22 +53,17 @@ public class DeployedPlugin implements Plugin<Project> {
 		project.getPluginManager().apply(MavenRepositoryPlugin.class);
 		PublishingExtension publishing = project.getExtensions().getByType(PublishingExtension.class);
 		MavenPublication publication = publishing.getPublications().create(PUBLICATION_NAME, MavenPublication.class);
-		// Matched rather than looked up: a subproject's own build file is evaluated
-		// after this one, so the component does not exist yet at this point.
+		// Matched rather than looked up: a subproject's build file runs after this, so the
+		// component does not exist yet.
 		publishComponent(project, publication, JavaPlugin.class, "java");
 		publishComponent(project, publication, JavaPlatformPlugin.class, "javaPlatform");
 		allowDependenciesWithoutVersions(project);
 	}
 
 	/**
-	 * Lets a module publish the version-less dependencies it declares.
-	 * <p>
-	 * Gradle rejects module metadata whose dependencies carry no version, on the
-	 * assumption that nobody could resolve it. Here that is the intended shape: the
-	 * versions live in {@code V31-dependencies}, and importing that BOM is how a consumer
-	 * is meant to depend on V31. Writing resolved versions into each artifact instead
-	 * would pin every consumer to whatever this build happened to resolve, and make the
-	 * BOM pointless.
+	 * Gradle rejects module metadata whose dependencies carry no version. Here that shape
+	 * is intended: the versions live in {@code V31-dependencies}, and importing that BOM
+	 * is how a consumer depends on V31.
 	 * @param project the project to configure
 	 */
 	private void allowDependenciesWithoutVersions(Project project) {

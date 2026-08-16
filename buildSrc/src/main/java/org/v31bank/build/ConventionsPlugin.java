@@ -22,11 +22,16 @@ import org.gradle.api.Project;
 /**
  * Applies the conventions every V31 project is held to.
  * <p>
- * Applied once from the root build to every subproject. Each set of conventions decides
- * for itself whether it has anything to do, by reacting to the plugins the project
- * actually has — so an aggregator with no code, a {@code java-platform}, and a Spring
- * Boot application can all be given the same treatment without any of them being
- * special-cased here.
+ * Not declared by a project. The root build applies it to all of them:
+ *
+ * <pre class="code">
+ * subprojects {
+ *     apply(plugin = "org.v31bank.conventions")
+ * }
+ * </pre>
+ *
+ * Each set of conventions reacts to the plugins a project actually has, so nothing here
+ * needs to know which kind of project it is looking at.
  *
  * @author Xander Wang
  * @since 0.2.0

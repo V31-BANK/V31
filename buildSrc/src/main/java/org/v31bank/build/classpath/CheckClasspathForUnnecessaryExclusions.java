@@ -43,15 +43,8 @@ import org.gradle.api.tasks.TaskAction;
  * Fails when a dependency excludes something it never brings in.
  * <p>
  * An exclusion is a claim about someone else's dependency graph, and that graph moves
- * under it: the upstream release that made the exclusion necessary is followed by one
- * that drops the dependency outright. The exclusion then does nothing, but it still reads
- * as a live decision, and the next person maintaining this file has to work out whether
- * removing it is safe. Nothing else notices, because an exclusion that matches nothing is
- * silent by construction.
- * <p>
- * Each dependency that declares exclusions is resolved on its own against
- * {@code V31-dependencies}, and whatever actually comes back accounts for the exclusions
- * that were doing something. What is left over is not.
+ * under it. An exclusion that matches nothing is silent by construction, so it outlives
+ * the upstream release that made it necessary while still reading as a live decision.
  *
  * @author Xander Wang
  * @since 0.2.0
@@ -59,47 +52,32 @@ import org.gradle.api.tasks.TaskAction;
 public abstract class CheckClasspathForUnnecessaryExclusions extends ClasspathCheck {
 
 	/**
-	 * The platform the standalone resolutions are done against, so that a dependency
-	 * named without a version can be resolved at all.
-	 * <p>
-	 * The published platform rather than the internal one. Everything reached from a
-	 * starter is something a consumer reaches too, and a consumer has only this one — so
-	 * a dependency that resolves against the internal platform and not against this one
-	 * is a starter nobody outside this build can use. Resolving here is what makes that
-	 * fail rather than pass quietly.
+	 * The published platform, not the internal one: a consumer has only this one, so
+	 * resolving here also catches a starter nobody outside this build could use.
 	 */
 	private static final String DEPENDENCIES = ":platform:V31-dependencies";
 
 	/**
-	 * The exclusions themselves, as an input.
-	 * <p>
-	 * The resolved classpath does not change when an exclusion is added or removed — that
-	 * is the very case being looked for — so without this the check would be considered
-	 * up to date across the edit that introduces the problem.
+	 * The resolved classpath does not change when an unnecessary exclusion is added or
+	 * removed, so without this input the check would stay up to date across the very edit
+	 * that introduces the problem.
 	 * @return the exclusions declared by each dependency
 	 */
 	@Input
 	public abstract MapProperty<String, Set<String>> getExclusionsByDependencyId();
 
 	/**
-	 * What each of those dependencies actually brings in, resolved on its own.
-	 * <p>
 	 * Filled in with providers rather than values, so the standalone resolutions happen
-	 * when this check runs and not while every build is being configured. Not an input:
-	 * it is the answer being checked, and it is derived from the exclusions that already
-	 * are one.
+	 * when this check runs and not while every build is being configured.
 	 * @return the modules each dependency resolves to
 	 */
 	@Internal
 	public abstract MapProperty<String, Set<String>> getResolvedByDependencyId();
 
 	/**
-	 * Reads the exclusions off the classpath, and arranges for what each of those
-	 * dependencies resolves to on its own.
-	 * <p>
-	 * Both happen here, at configuration time, because both need the
-	 * {@link Configuration} and the project behind it — and neither may be carried into
-	 * the task's execution. What the execution gets is two maps of plain strings.
+	 * Both maps are built at configuration time because both need the
+	 * {@link Configuration} and the project behind it, neither of which may be carried
+	 * into the task's execution.
 	 * @param classpath the configuration to check
 	 */
 	@Override
@@ -124,12 +102,6 @@ public abstract class CheckClasspathForUnnecessaryExclusions extends ClasspathCh
 		});
 	}
 
-	/**
-	 * What one dependency brings in when nothing else is on the classpath.
-	 * @param dependency the dependency to resolve
-	 * @param platform the versions to resolve it against
-	 * @return the modules it resolves to, worked out when asked for
-	 */
 	private Provider<Set<String>> resolveOnItsOwn(Dependency dependency, Dependency platform) {
 		return getProject().getConfigurations()
 			.detachedConfiguration(dependency, platform)

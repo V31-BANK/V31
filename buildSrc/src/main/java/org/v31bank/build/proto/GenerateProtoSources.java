@@ -38,15 +38,10 @@ import org.gradle.api.tasks.TaskAction;
 /**
  * Generates one API's sources into the project.
  * <p>
- * One API at a time — {@code buf generate --path <api>} — which is what makes a generated
- * file traceable: everything the run writes came from that one directory's
- * {@code .proto}, so it all belongs to this project and nothing has to be sorted out
- * afterwards.
- * <p>
- * buf writes into a staging directory rather than into the project, so that what it
- * produced can be written down before it is copied. That list is what the next run takes
- * away: a message removed from the API takes its class with it, rather than leaving one
- * behind that still compiles.
+ * buf writes into a staging directory first, so the files it produced can be recorded
+ * before they are copied. The next run deletes exactly what that record names, so a message
+ * dropped from the {@code .proto} takes its class with it instead of leaving one behind
+ * that still compiles.
  *
  * @author Xander Wang
  * @since 0.2.0
@@ -54,17 +49,8 @@ import org.gradle.api.tasks.TaskAction;
 public abstract class GenerateProtoSources extends BufTask {
 
 	/**
-	 * What buf is told to generate.
-	 * <p>
-	 * A language is added by adding a plugin entry, and nothing else has to change. The
-	 * generators are left as holes rather than written out: where they are is known only
-	 * to the task that installed them, and a path spelled here would be this file's guess
-	 * at how far {@code proto} sits from the build directory — a guess nothing checks and
-	 * that buf answers, at the end of a build, with a plugin it could not find.
-	 * <p>
-	 * Single-quoted, because the paths that go in the holes are absolute: quoting takes
-	 * care of a space, and single quotes take no escapes, which is what a Windows path
-	 * needs to survive.
+	 * The generator paths are single-quoted because they are absolute: quoting survives a
+	 * space, and single quotes take no escapes, which a Windows path needs.
 	 */
 	private static final String TEMPLATE = """
 			version: v2
@@ -85,34 +71,18 @@ public abstract class GenerateProtoSources extends BufTask {
 			    out: .
 			""";
 
-	/**
-	 * One of the two generators buf drives.
-	 * <p>
-	 * An input as much as buf itself, and for the same reason: the Java is protoc's
-	 * writing, so a different protoc is a different answer and the sources have to be
-	 * written again. Without this, a version bumped in {@code gradle.properties} reaches
-	 * the installed executable and stops there — buf is unchanged, so this task is
-	 * up to date, and what is compiled stays what the old generator wrote.
-	 * @return {@code protoc}, which writes the messages
-	 */
 	@InputFile
 	@PathSensitive(PathSensitivity.NONE)
 	public abstract RegularFileProperty getProtoc();
 
-	/**
-	 * The other, on the same terms.
-	 * @return {@code protoc-gen-grpc-java}, which writes the service stubs
-	 */
 	@InputFile
 	@PathSensitive(PathSensitivity.NONE)
 	public abstract RegularFileProperty getGrpcJavaGenerator();
 
 	/**
-	 * A source directory, so only the files this task wrote are ever removed from it. Not
-	 * declared as an output either: {@code compileJava} reads it, and declaring it would
-	 * make every generated file something one task produces and another silently
-	 * consumes.
-	 * @return where the generated sources go
+	 * Not declared as an output: {@code compileJava} reads this directory, and declaring it
+	 * would make every generated file something one task produces and another consumes.
+	 * @return the directory the generated sources are copied into
 	 */
 	@Internal
 	public abstract DirectoryProperty getDestination();
@@ -127,7 +97,7 @@ public abstract class GenerateProtoSources extends BufTask {
 	void generate() throws IOException {
 		removeWhatTheLastRunWrote();
 		Path staging = getTemporaryDir().toPath().resolve("generated");
-		// The whole directory: it holds the last run's output and nothing else.
+		// Safe to take whole, unlike the destination: staging holds only the last run's output.
 		getFileSystemOperations().delete((spec) -> spec.delete(staging));
 		Files.createDirectories(staging);
 		buf("generate", "--path", getApi().get(), "--output", staging.toString(), "--template", template());
@@ -140,10 +110,9 @@ public abstract class GenerateProtoSources extends BufTask {
 	}
 
 	/**
-	 * The files the last run put in the destination, and only those. A directory would be
-	 * the simpler thing to delete, but the destination is a source directory: taking all
-	 * of it would take whatever else lives there too.
-	 * @throws IOException if the record cannot be read
+	 * The destination is a source directory, so deleting all of it would take whatever else
+	 * lives there; only the files the manifest names go.
+	 * @throws IOException if the manifest cannot be read
 	 */
 	private void removeWhatTheLastRunWrote() throws IOException {
 		Path manifest = getManifest().get().getAsFile().toPath();
@@ -156,11 +125,8 @@ public abstract class GenerateProtoSources extends BufTask {
 	}
 
 	/**
-	 * Writes {@link #TEMPLATE} out for buf to read.
-	 * <p>
-	 * buf takes its instructions as a file and nothing else, so the one written down
-	 * above has to become one. It goes in the task's own temporary directory, where it is
-	 * rewritten on every run and never mistaken for something anyone maintains.
+	 * buf takes its instructions as a file and nothing else, so {@link #TEMPLATE} is written
+	 * out on every run, into the temporary directory where nobody will maintain it by hand.
 	 * @return the path to hand buf
 	 */
 	private String template() {

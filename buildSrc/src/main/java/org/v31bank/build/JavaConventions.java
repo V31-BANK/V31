@@ -45,40 +45,27 @@ import org.gradle.jvm.toolchain.JavaLanguageVersion;
 /**
  * Conventions applied to every project that builds Java.
  * <p>
- * What used to be a {@code subprojects} block in the root build file. Expressed as a
- * plugin instead, so that a subproject opts in by applying it rather than by being a
- * child of the right project, and so the rules can be read, compiled and tested as
- * ordinary code.
+ * Not a registered Gradle plugin: {@code ConventionsPlugin} instantiates it directly.
+ * These rules used to be a {@code subprojects} block in the root build file, and as
+ * ordinary code they can be read, compiled and tested.
  *
  * @author Xander Wang
  * @since 0.2.0
  */
 class JavaConventions {
 
-	/**
-	 * The platform every project resolves its third-party versions from.
-	 */
 	private static final String INTERNAL_DEPENDENCIES = ":platform:V31-internal-dependencies";
 
 	/**
-	 * The property naming the JDK that compiles and that runs the tests. Pinning it
-	 * through a toolchain is what makes the same source produce the same result on every
-	 * machine, rather than whatever JDK happens to be running the build.
+	 * Names the JDK that compiles the code and runs the tests.
 	 */
 	private static final String BUILD_JAVA_VERSION = "buildJavaVersion";
 
 	/**
-	 * The property naming what the result is allowed to use and to run on. Settled with
-	 * {@code release}, which fixes the syntax, the bytecode version and the visible API
-	 * together — so a call to something added later fails here rather than on the JVM the
-	 * artifact claimed to support.
+	 * Names the JDK the result must run on, which is a different question.
 	 */
 	private static final String RUNTIME_JAVA_VERSION = "runtimeJavaVersion";
 
-	/**
-	 * The property naming the checkstyle release to run, so that it sits beside the other
-	 * tool versions in {@code gradle.properties} rather than inside the build logic.
-	 */
 	private static final String CHECKSTYLE_TOOL_VERSION = "checkstyleToolVersion";
 
 	void apply(Project project) {
@@ -91,18 +78,8 @@ class JavaConventions {
 	}
 
 	/**
-	 * Holds the code to one shape and one set of habits.
-	 * <p>
-	 * Two tools, because they answer different questions. The formatter settles what the
-	 * code looks like — indentation, wrapping, import order — and settles it by rewriting
-	 * the file, so it is never something to discuss. Checkstyle settles what the code is
-	 * allowed to do: which packages may be imported, whether a deprecation says what
-	 * replaced it, whether a public type explains itself. Neither can do the other's job,
-	 * and both turn a recurring review comment into a build failure.
-	 * <p>
-	 * The checkstyle rules are the ones shipped with the formatter, so the two cannot
-	 * disagree, and the version comes from the formatter's own jar rather than being
-	 * named twice.
+	 * The formatter rewrites the file, so its shape is never discussed; checkstyle limits
+	 * what the code may do. Its rules ship with the formatter, so the two cannot disagree.
 	 * @param project the project to configure
 	 */
 	private void configureSpringJavaFormat(Project project) {
@@ -134,24 +111,11 @@ class JavaConventions {
 	}
 
 	/**
-	 * Gives every project the platform's versions without any project having to ask.
-	 * <p>
-	 * The platform goes into a configuration of its own that the resolvable ones extend,
-	 * rather than into {@code implementation}. Three things follow from that, and all
-	 * three are the reason it is done this way:
-	 * <ul>
-	 * <li>It reaches every classpath — compile, runtime, test, and any source set added
-	 * later — instead of the two configurations someone remembered to name.</li>
-	 * <li>The configuration is neither consumable nor resolvable, so the platform never
-	 * appears in this project's published metadata. Declared as {@code implementation} it
-	 * does, and a consumer then has to resolve a platform that only exists inside this
-	 * build.</li>
-	 * <li>It is an <em>enforced</em> platform: the versions are mandatory rather than
-	 * suggestions, so a transitive dependency cannot quietly pull the build onto a
-	 * different one.</li>
-	 * </ul>
-	 * This mirrors what Spring Boot's own build does with
-	 * {@code spring-boot-internal-dependencies}.
+	 * The platform goes into a configuration of its own rather than into
+	 * {@code implementation}, so that it reaches every classpath including source sets
+	 * added later, stays out of the published metadata where a consumer would have to
+	 * resolve a platform internal to this build, and being enforced cannot be overridden
+	 * by a transitive dependency.
 	 * @param project the project to configure
 	 */
 	private void configureDependencyManagement(Project project) {
@@ -169,16 +133,11 @@ class JavaConventions {
 	}
 
 	/**
-	 * Whether a configuration is one that resolves dependencies, and so needs the
-	 * platform's versions.
-	 * <p>
-	 * The classpaths and the annotation processor path are the obvious ones. The protobuf
-	 * plugin adds its own — {@code compileProtoPath}, {@code testCompileProtoPath} —
-	 * which resolve {@code protobuf-java} and the gRPC artifacts; they end in
-	 * {@code Path} rather than {@code Classpath}, so matching only the latter leaves the
-	 * API projects unable to resolve anything.
+	 * The protobuf plugin resolves {@code protobuf-java} and the gRPC artifacts through
+	 * {@code compileProtoPath} and {@code testCompileProtoPath}, so matching only names
+	 * ending in {@code Classpath} leaves the API projects unable to resolve anything.
 	 * @param configuration the configuration to consider
-	 * @return whether it should take its versions from the platform
+	 * @return whether it takes its versions from the platform
 	 */
 	private static boolean needsManagedVersions(Configuration configuration) {
 		String name = configuration.getName();
@@ -187,12 +146,9 @@ class JavaConventions {
 	}
 
 	/**
-	 * Both, because they answer different questions.
-	 * <p>
-	 * The toolchain settles which compiler runs, so that the same source produces the
-	 * same bytecode here and on a build agent. The release settles what that compiler is
-	 * allowed to see: without it the whole JDK is on the compile classpath, and a call to
-	 * something added after this version compiles cleanly and fails at runtime.
+	 * The toolchain settles which compiler runs; {@code release} settles what that
+	 * compiler may see, so a call to an API added after the runtime version fails here
+	 * rather than on the JVM the artifact claims to support.
 	 * @param project the project to configure
 	 */
 	private void configureJavaCompilation(Project project) {
@@ -204,26 +160,14 @@ class JavaConventions {
 		project.getTasks().withType(JavaCompile.class).configureEach((compile) -> {
 			compile.getOptions().getRelease().set(runtimeVersion);
 			Set<String> args = new LinkedHashSet<>(compile.getOptions().getCompilerArgs());
-			// -Werror is what makes the rest of this list mean anything. A warning
-			// nobody has to act on is read once and then scrolled past, and the build
-			// that prints two hundred of them is the build where the one that mattered
-			// went unread.
+			// -Werror is what makes the rest of the list mean anything: a warning nobody
+			// has to act on is scrolled past.
 			args.addAll(List.of("-parameters", "-Werror", "-Xlint:unchecked", "-Xlint:deprecation", "-Xlint:rawtypes",
 					"-Xlint:varargs"));
 			compile.getOptions().setCompilerArgs(new ArrayList<>(args));
 		});
 	}
 
-	/**
-	 * Reads a version.
-	 * <p>
-	 * No check that it is there: {@code property} raises one naming the property, and
-	 * {@code buildSrc} settles the same two properties before this build logic is even
-	 * compiled — anything missing has already stopped the build by now.
-	 * @param project the project to read from
-	 * @param name the property naming the version
-	 * @return the version it names
-	 */
 	private int version(Project project, String name) {
 		return Integer.parseInt(project.property(name).toString());
 	}

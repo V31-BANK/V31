@@ -41,52 +41,29 @@ import org.gradle.api.tasks.TaskAction;
  * Fails the build on a migration whose name does not follow the convention in
  * {@code :V31-customer-service:db/migration/README.md}, or that reuses a version another
  * migration already took.
- * <p>
- * A migration is checked here rather than at deployment because that is the last moment
- * it is still cheap. Flyway records a version the first time it applies one; by the time
- * a duplicate or a malformed name is noticed in an environment, the fix is a manual
- * repair of {@code flyway_schema_history} in every environment that got there first.
  *
  * @author Xander Wang
  * @since 0.2.0
  */
 public abstract class ValidateMigrationNames extends DefaultTask {
 
-	/**
-	 * Applied once, in version order:
-	 * {@code V{yyyyMMddHHmmss}__{table}_{verb}[_{detail}].sql}.
-	 */
+	/** Applied once, in version order. */
 	private static final Pattern VERSIONED = Pattern.compile("^V\\d{14}__[a-z][a-z0-9_]*"
 			+ "_(create|drop|add|alter|rename|index|constraint|seed|backfill)(_[a-z0-9_]+)?\\.sql$");
 
-	/**
-	 * Re-applied whenever its checksum changes: {@code R__{object}_{kind}.sql}.
-	 */
+	/** Re-applied whenever its checksum changes. */
 	private static final Pattern REPEATABLE = Pattern
 		.compile("^R__[a-z][a-z0-9_]*_(view|function|procedure|trigger)\\.sql$");
 
 	private static final DateTimeFormatter VERSION_TIMESTAMP = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
-	/**
-	 * The migrations to check.
-	 * <p>
-	 * Fingerprinted by path relative to the migration directory rather than by absolute
-	 * path, so a checkout in a different directory — a build agent, another developer —
-	 * produces the same fingerprint and can reuse the same result.
-	 * @return the migration files
-	 */
 	@InputFiles
 	@PathSensitive(PathSensitivity.RELATIVE)
 	public abstract ConfigurableFileCollection getMigrations();
 
 	/**
-	 * Written when the names check out, and otherwise the only reason this task can be
-	 * skipped.
-	 * <p>
-	 * A task that declares no output is never up to date: Gradle has nothing to verify a
-	 * previous run by, so it re-runs on every build regardless of what
-	 * {@link #getMigrations()} was fingerprinted as. This file is what lets the
-	 * fingerprint be used for what it was declared for.
+	 * A marker written when the names check out, declared only so the task can be up to
+	 * date: Gradle re-runs a task that has no output on every build.
 	 * @return the marker file
 	 */
 	@OutputFile
@@ -119,15 +96,14 @@ public abstract class ValidateMigrationNames extends DefaultTask {
 			String year = version.substring(0, 4);
 			String directory = migration.getParentFile().getName();
 			if (!year.equals(directory)) {
-				// Flyway scans recursively and orders by version alone, so this never
-				// breaks anything. It breaks reading: the year directory is how the
-				// history is browsed, and one file in the wrong one is invisible there.
+				// Flyway orders by version alone, so this only breaks reading: the year
+				// directory is how the history gets browsed.
 				problems.add(name + " — a versioned migration lives in db/migration/" + year + ", not " + directory);
 			}
 			String taken = byVersion.putIfAbsent(version, name);
 			if (taken != null) {
-				// Flyway applies one and records the version; the other is then
-				// silently skipped for the lifetime of the schema.
+				// Flyway applies one and records the version; the other is silently
+				// skipped for the lifetime of the schema.
 				problems.add(name + " — version " + version + " is already taken by " + taken);
 			}
 		}

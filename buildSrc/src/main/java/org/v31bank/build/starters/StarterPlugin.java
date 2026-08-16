@@ -33,7 +33,8 @@ import org.v31bank.build.classpath.CheckClasspathForUnnecessaryExclusions;
 import org.v31bank.build.classpath.ClasspathCheck;
 
 /**
- * What a starter is.
+ * Configures a project as a V31 starter: published, exporting its dependencies rather
+ * than hiding them, with its versions settled.
  * <p>
  * Declared by the project itself:
  *
@@ -43,13 +44,9 @@ import org.v31bank.build.classpath.ClasspathCheck;
  * }
  * </pre>
  *
- * A starter's own build file is then left saying only what it is called and what it pulls
- * in, which is all there is to say about one. Everything that is true of every starter —
- * that it is published, that it hands its dependencies on rather than hiding them, that
- * its versions are settled — is here, in one place, where it can be changed once.
- * <p>
- * The checks are the part worth having. A starter has nothing to unit test, so what would
- * otherwise be reviewed by eye is attached to {@code check} instead.
+ * A starter's build file is then left saying only what it is called and what it pulls in.
+ * A starter has nothing to unit test, so the classpath checks registered here take the
+ * place of the review its dependency graph would otherwise need by eye.
  *
  * @author Xander Wang
  * @since 0.2.0
@@ -77,13 +74,9 @@ public class StarterPlugin implements Plugin<Project> {
 	}
 
 	/**
-	 * Writes what the starter resolves to, and offers the file to other projects.
-	 * <p>
-	 * The artifact goes into a configuration named after the task rather than into the
-	 * starter's own jar: a consumer asks for {@code starterMetadata} and gets the file,
-	 * and Gradle runs the task that produces it because the artifact says which task
-	 * builds it. Nobody has to know the path, and nothing has to be built in a particular
-	 * order by hand.
+	 * The file is published through a configuration of its own rather than the starter's
+	 * jar, so a consumer asks for {@code starterMetadata} by name and Gradle builds it on
+	 * demand.
 	 * @param project the project
 	 * @param runtimeClasspath what the starter resolves to
 	 */
@@ -101,10 +94,8 @@ public class StarterPlugin implements Plugin<Project> {
 	}
 
 	/**
-	 * Registers a check on the given classpath and hangs it off {@code check}.
-	 * <p>
-	 * The task is named after the configuration it looks at, so the failure says which
-	 * classpath it was talking about without anyone having to look the task up.
+	 * The task is named after the configuration it looks at, so a failure says which
+	 * classpath it was talking about.
 	 * @param <T> the type of check
 	 * @param project the project
 	 * @param classpath the configuration to check

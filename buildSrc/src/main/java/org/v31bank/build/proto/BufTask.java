@@ -32,43 +32,22 @@ import org.gradle.process.ExecOperations;
 /**
  * One run of buf against one API.
  * <p>
- * Every buf command takes the same three things and takes them the same way: which
- * executable, which API, and the directory to run from — buf reads {@code buf.yaml} from
- * where it is invoked and names an API by its path relative to there, so the working
- * directory is not a detail but part of how an API is addressed. A subclass says only
- * which command it is and what that command's own arguments are.
- * <p>
- * The commands differ in more than their arguments, which is why they stay separate
- * tasks rather than becoming modes of one. Generating writes into the project and has an
- * output Gradle can check; checking writes nothing and belongs to {@code check}. Folding
- * the two together would put a source directory under a verification task, which is the
- * one thing a verification task must not touch.
+ * buf reads {@code buf.yaml} from the directory it is invoked in and names an API by its
+ * path relative to there, so the working directory is part of how an API is addressed. A
+ * subclass supplies only the command and that command's own arguments.
  *
  * @author Xander Wang
  * @since 0.2.0
  */
 public abstract class BufTask extends DefaultTask {
 
-	/**
-	 * Which API this task is about.
-	 * @return the path under the proto root to work on
-	 */
 	@Input
 	public abstract Property<String> getApi();
 
-	/**
-	 * Fetched by the build rather than found on the {@code PATH}.
-	 * @return the {@code buf} to run
-	 */
 	@InputFile
 	@PathSensitive(PathSensitivity.NONE)
 	public abstract RegularFileProperty getBuf();
 
-	/**
-	 * Where buf is run from, and where it reads {@code buf.yaml}, so that an API is named
-	 * the way it is imported.
-	 * @return the proto root, holding {@code buf.yaml} and every API
-	 */
 	@InputDirectory
 	@PathSensitive(PathSensitivity.RELATIVE)
 	public abstract DirectoryProperty getProtoDirectory();
@@ -76,10 +55,6 @@ public abstract class BufTask extends DefaultTask {
 	@Inject
 	protected abstract ExecOperations getExecOperations();
 
-	/**
-	 * Runs buf, from the one place it can be run from.
-	 * @param arguments the command and its own arguments, without the executable
-	 */
 	protected void buf(String... arguments) {
 		getExecOperations().exec((spec) -> {
 			spec.setWorkingDir(getProtoDirectory().get().getAsFile());

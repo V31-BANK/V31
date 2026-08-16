@@ -36,14 +36,10 @@ import org.gradle.api.tasks.TaskAction;
 /**
  * Fails when a starter declares a dependency whose version nothing constrains.
  * <p>
- * A starter's whole promise is that naming it settles a set of versions that were built
- * and tested together. A direct dependency that no platform has an opinion about breaks
- * that quietly: the build resolves <em>something</em>, so nothing fails here, and which
- * version a consumer ends up with depends on the rest of their graph.
- * <p>
- * Constrained means some platform speaks for it — {@code V31-internal-dependencies} for
- * third-party libraries, {@code V31-dependencies} for V31's own artifacts. Where the
- * constraint comes from is not checked, only that one exists.
+ * Naming a starter is meant to settle a set of versions that were built and tested
+ * together. An unconstrained dependency still resolves to <em>something</em>, so nothing
+ * fails here, and which version a consumer ends up with depends on the rest of their
+ * graph. Which platform supplies the constraint is not checked, only that one exists.
  *
  * @author Xander Wang
  * @since 0.2.0
@@ -61,11 +57,8 @@ public abstract class CheckClasspathForUnconstrainedDirectDependencies extends C
 	}
 
 	/**
-	 * Every edge in the graph, reached by walking it.
-	 * <p>
-	 * The resolution result would hand these over directly, but it cannot be carried into
-	 * a task's execution — only its root can. Walking from there reaches the same edges;
-	 * the visited set is what stops a cycle from doing so forever.
+	 * The resolution result would hand these over directly, but only its root can be
+	 * carried into a task's execution.
 	 * @param root where the graph starts
 	 * @return every dependency edge in it
 	 */
@@ -89,13 +82,10 @@ public abstract class CheckClasspathForUnconstrainedDirectDependencies extends C
 	}
 
 	/**
-	 * Reduces dependency edges to {@code group:module}.
-	 * <p>
-	 * Project dependencies fall out along the way: they are selectors of another kind and
-	 * carry this build's version by construction, so there is nothing for a platform to
-	 * constrain.
+	 * Project dependencies drop out here: they carry this build's version by
+	 * construction, so there is nothing for a platform to constrain.
 	 * @param dependencies the edges to reduce
-	 * @return their module identifiers
+	 * @return their {@code group:module} identifiers
 	 */
 	private Set<String> moduleIds(Stream<? extends DependencyResult> dependencies) {
 		return dependencies.map(DependencyResult::getRequested)

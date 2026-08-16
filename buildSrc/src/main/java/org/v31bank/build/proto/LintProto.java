@@ -19,15 +19,11 @@ package org.v31bank.build.proto;
 import org.gradle.api.tasks.TaskAction;
 
 /**
- * Holds one API to the rules {@code buf.yaml} names.
+ * Checks one API against the rules {@code buf.yaml} names.
  * <p>
- * The rules are already written down; without this nothing reads them, and a convention
- * nothing enforces is a convention that drifts. What they catch is what a compiler
- * cannot: a package that does not match its directory, a response reused across RPCs so
- * that neither can grow a field, a name that reads differently from every other name in
- * the contract.
- * <p>
- * One API at a time, so a failure says which contract it is about.
+ * The rules catch what the compiler cannot: a package that does not match its directory,
+ * a response reused across RPCs so that neither can grow a field, a name that reads
+ * unlike every other name in the API. One API per task, so a failure says which one.
  *
  * @author Xander Wang
  * @since 0.2.0

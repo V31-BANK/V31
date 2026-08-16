@@ -42,10 +42,9 @@ import org.gradle.api.tasks.TaskAction;
 /**
  * Fails when two jars on the classpath contain the same entry.
  * <p>
- * Which of the two wins is decided by classpath order, which nothing in the build
- * guarantees and no test observes — so the wrong one is loaded silently, and the symptom
- * turns up somewhere unrelated at runtime. A starter exists to hand a consumer a set of
- * jars that work together; two copies of a class is that promise already broken.
+ * Which copy wins is decided by classpath order, which nothing in the build guarantees
+ * and no test observes. The wrong one is loaded silently and the symptom turns up
+ * somewhere unrelated at runtime.
  *
  * @author Xander Wang
  * @since 0.2.0
@@ -87,11 +86,7 @@ public abstract class CheckClasspathForConflicts extends ClasspathCheck {
 	}
 
 	/**
-	 * Accepts an entry that appears more than once anyway.
-	 * <p>
-	 * The escape hatch for a duplicate that is known and harmless. Adding one is a
-	 * decision about a specific entry, made where it can be read and explained, rather
-	 * than a check somebody turns off.
+	 * The escape hatch for a duplicate that is known and harmless.
 	 * @param predicate matches the entry names to accept
 	 */
 	public void ignore(Predicate<String> predicate) {
@@ -101,8 +96,8 @@ public abstract class CheckClasspathForConflicts extends ClasspathCheck {
 	private static final class ClasspathContents {
 
 		/**
-		 * Entries that jars are expected to disagree about. Every jar carries its own
-		 * licence and its own module descriptor; that is not a conflict.
+		 * Entries jars are expected to disagree about: every jar carries its own licence
+		 * and its own module descriptor.
 		 */
 		private static final Set<String> IGNORED_NAMES = new HashSet<>(Arrays.asList("about.html", "changelog.txt",
 				"LICENSE", "license.txt", "module-info.class", "notice.txt", "readme.txt"));
