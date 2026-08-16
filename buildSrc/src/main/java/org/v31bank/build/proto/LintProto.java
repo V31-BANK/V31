@@ -16,19 +16,7 @@
 
 package org.v31bank.build.proto;
 
-import javax.inject.Inject;
-
-import org.gradle.api.DefaultTask;
-import org.gradle.api.file.DirectoryProperty;
-import org.gradle.api.file.RegularFileProperty;
-import org.gradle.api.provider.Property;
-import org.gradle.api.tasks.Input;
-import org.gradle.api.tasks.InputDirectory;
-import org.gradle.api.tasks.InputFile;
-import org.gradle.api.tasks.PathSensitive;
-import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.TaskAction;
-import org.gradle.process.ExecOperations;
 
 /**
  * Holds one API to the rules {@code buf.yaml} names.
@@ -44,40 +32,11 @@ import org.gradle.process.ExecOperations;
  * @author Xander Wang
  * @since 0.2.0
  */
-public abstract class LintProto extends DefaultTask {
-
-	/**
-	 * Which API to look at.
-	 * @return the path under the proto root to lint
-	 */
-	@Input
-	public abstract Property<String> getApi();
-
-	/**
-	 * Fetched by the build rather than found on the {@code PATH}.
-	 * @return the {@code buf} to run
-	 */
-	@InputFile
-	@PathSensitive(PathSensitivity.NONE)
-	public abstract RegularFileProperty getBuf();
-
-	/**
-	 * Where buf is run from, and where it reads {@code buf.yaml}.
-	 * @return the proto root
-	 */
-	@InputDirectory
-	@PathSensitive(PathSensitivity.RELATIVE)
-	public abstract DirectoryProperty getProtoDirectory();
-
-	@Inject
-	protected abstract ExecOperations getExecOperations();
+public abstract class LintProto extends BufTask {
 
 	@TaskAction
 	void lint() {
-		getExecOperations().exec((spec) -> {
-			spec.setWorkingDir(getProtoDirectory().get().getAsFile());
-			spec.commandLine(getBuf().get().getAsFile().getAbsolutePath(), "lint", "--path", getApi().get());
-		});
+		buf("lint", "--path", getApi().get());
 	}
 
 }

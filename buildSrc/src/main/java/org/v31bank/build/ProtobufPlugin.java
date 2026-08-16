@@ -26,6 +26,7 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.stream.Stream;
 
+import org.gradle.api.Action;
 import org.gradle.api.GradleException;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
@@ -40,6 +41,7 @@ import org.gradle.api.tasks.TaskContainer;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
 
+import org.v31bank.build.proto.BufTask;
 import org.v31bank.build.proto.DownloadProtoTools;
 import org.v31bank.build.proto.GenerateProtoSources;
 import org.v31bank.build.proto.LintProto;
@@ -57,8 +59,8 @@ import org.v31bank.build.proto.LintProto;
  *
  * The APIs live in one place — {@code proto} at the root, managed by Buf — and a project
  * takes the one that is named after it. The match is by name and nothing else:
- * {@code proto/compliance} is the API for whichever project has {@code compliance} in its
- * name, so a project is served by being called what it is and there is no list of who
+ * {@code proto/v31/compliance} is the API for whichever project has {@code compliance} in
+ * its name, so a project is served by being called what it is and there is no list of who
  * gets what.
  * <p>
  * Generation is part of building rather than something to remember to run. The sources
@@ -75,11 +77,14 @@ public class ProtobufPlugin implements Plugin<Project> {
 	private static final String PROTO = "proto";
 
 	/**
-	 * The one segment every API's package starts with, and so the directory they all sit
-	 * in: buf's {@code PACKAGE_DIRECTORY_MATCH} wants a file's path to spell out its
-	 * package, and every package here begins {@code v31}.
+	 * Where the APIs sit beneath the proto root.
+	 * <p>
+	 * buf's {@code PACKAGE_DIRECTORY_MATCH} wants a file's path to spell out its package
+	 * and every package here begins {@code v31}, so that segment is the layout. Written
+	 * down here and nowhere else: every path this plugin builds is derived from it, so a
+	 * level added to the layout is added by editing this line and no other.
 	 */
-	private static final String PACKAGE_ROOT = "v31";
+	private static final String APIS = "v31";
 
 	private static final String GENERATE_TASK_NAME = "generateProtoSources";
 
@@ -122,15 +127,17 @@ public class ProtobufPlugin implements Plugin<Project> {
 	 * plugin simply has nothing to generate — so both are the same answer rather than two
 	 * things to check separately.
 	 * @param project the project asking
-	 * @return the directory under {@code proto} whose name this project's contains
+	 * @return the API whose name this project's contains
 	 * @throws GradleException if the name contains more than one, since there is then no
 	 * telling which was meant
 	 */
-	private Optional<String> apiFor(Project project) {
-		List<String> matches = apisIn(project).filter((api) -> project.getName().contains(api)).toList();
+	private Optional<Api> apiFor(Project project) {
+		List<Api> matches = apisIn(project.getRootProject().file(PROTO))
+			.filter((api) -> project.getName().contains(api.name()))
+			.toList();
 		if (matches.size() > 1) {
-			throw new GradleException(project.getPath() + " is named after more than one API " + matches
-					+ ", so which one it wants cannot be read from its name.");
+			throw new GradleException(project.getPath() + " is named after more than one API "
+					+ matches.stream().map(Api::name).toList() + ", so which one it wants cannot be read from its name.");
 		}
 		return matches.stream().findFirst();
 	}
@@ -141,59 +148,60 @@ public class ProtobufPlugin implements Plugin<Project> {
 	 * {@code listFiles} answers {@code null} for a path that is not a directory as well
 	 * as for one that is not there, so a build with no {@code proto} directory needs no
 	 * separate question asked of it.
-	 * @param project the project asking
-	 * @return the name of each directory under {@code proto}, and none if there is no
-	 * such directory
+	 * @param root where buf runs, holding {@code buf.yaml} and every API
+	 * @return every API beneath it, and none if there is no such directory
 	 */
-	private Stream<String> apisIn(Project project) {
-		File[] directories = apiDirectory(project).listFiles();
+	private Stream<Api> apisIn(File root) {
+		File[] directories = new File(root, APIS).listFiles();
 		return (directories != null) ? Stream.of(directories)
 			.filter((file) -> file.isDirectory() && !file.getName().startsWith("."))
-			.map(File::getName) : Stream.empty();
+			.map((file) -> new Api(root, file.getName())) : Stream.empty();
 	}
 
-	private File protoDirectory(Project project) {
-		return project.getRootProject().file(PROTO);
-	}
-
-	private File apiDirectory(Project project) {
-		return new File(protoDirectory(project), PACKAGE_ROOT);
-	}
-
-	private void generate(Project project, String api) {
-		File proto = protoDirectory(project);
-		File directory = new File(apiDirectory(project), api);
+	private void generate(Project project, Api api) {
 		TaskProvider<DownloadProtoTools> tools = tools(project.getRootProject());
-		TaskProvider<GenerateProtoSources> generate = project.getTasks()
-			.register(GENERATE_TASK_NAME, GenerateProtoSources.class, (task) -> {
-				task.setDescription("Generates this project's sources from the " + api + " proto.");
-				// The path buf is given, which is the package spelled out.
-				task.getApi().set(PACKAGE_ROOT + "/" + api);
-				task.getBuf().set(tools.flatMap((installed) -> installed.getDestination().file("buf")));
-				task.getProtoDirectory().set(proto);
-				task.getDestination().set(mainSourceDirectory(project));
-				task.getManifest().set(project.getLayout().getBuildDirectory().file("proto/generated-sources.txt"));
-				task.onlyIf("the " + api + " API has a .proto to generate", (_) -> holdsProtos(directory));
-			});
+		Provider<RegularFile> buf = tools.flatMap(DownloadProtoTools::getInstalledBuf);
+		TaskProvider<GenerateProtoSources> generate = bufTask(project, GENERATE_TASK_NAME,
+				GenerateProtoSources.class, api, buf, (task) -> {
+					task.setDescription("Generates this project's sources from the " + api.name() + " proto.");
+					task.getProtoc().set(tools.flatMap(DownloadProtoTools::getInstalledProtoc));
+					task.getGrpcJavaGenerator().set(tools.flatMap(DownloadProtoTools::getInstalledGrpcJavaGenerator));
+					task.getDestination().set(mainSourceDirectory(project));
+					task.getManifest()
+						.set(project.getLayout().getBuildDirectory().file("proto/generated-sources.txt"));
+				});
 		project.getTasks().named(JavaPlugin.COMPILE_JAVA_TASK_NAME).configure((compile) -> compile.dependsOn(generate));
-		TaskProvider<LintProto> lint = project.getTasks().register(LINT_TASK_NAME, LintProto.class, (task) -> {
+		TaskProvider<LintProto> lint = bufTask(project, LINT_TASK_NAME, LintProto.class, api, buf, (task) -> {
 			task.setGroup(LifecycleBasePlugin.VERIFICATION_GROUP);
-			task.setDescription("Checks the " + api + " API against the rules in buf.yaml.");
-			task.getApi().set(PACKAGE_ROOT + "/" + api);
-			task.getBuf().set(tools.flatMap((installed) -> installed.getDestination().file("buf")));
-			task.getProtoDirectory().set(proto);
-			task.onlyIf("the " + api + " API has a .proto to check", (_) -> holdsProtos(directory));
+			task.setDescription("Checks the " + api.name() + " API against the rules in buf.yaml.");
 		});
 		project.getTasks().named(LifecycleBasePlugin.CHECK_TASK_NAME).configure((check) -> check.dependsOn(lint));
 	}
 
-	private static boolean holdsProtos(File api) {
-		try (Stream<Path> files = Files.walk(api.toPath())) {
-			return files.anyMatch((file) -> file.toString().endsWith(".proto"));
-		}
-		catch (IOException ex) {
-			throw new UncheckedIOException("Failed to look inside " + api, ex);
-		}
+	/**
+	 * Registers one buf task, given what every buf task is given.
+	 * <p>
+	 * The three properties and the {@code onlyIf} are the whole of what a buf task needs
+	 * to be pointed at an API, and they are the same three whichever command it runs — so
+	 * they are set here, and a caller says only what its own task adds.
+	 * @param <T> the kind of buf task
+	 * @param project the project to register it on
+	 * @param name what to call it
+	 * @param type the kind of buf task
+	 * @param api the API it is about
+	 * @param buf the executable to run
+	 * @param configure what this task adds to the three
+	 * @return the registered task
+	 */
+	private <T extends BufTask> TaskProvider<T> bufTask(Project project, String name, Class<T> type, Api api,
+			Provider<RegularFile> buf, Action<? super T> configure) {
+		return project.getTasks().register(name, type, (task) -> {
+			task.getApi().set(api.path());
+			task.getBuf().set(buf);
+			task.getProtoDirectory().set(api.root());
+			task.onlyIf("the " + api.name() + " API has a .proto", (_) -> api.holdsProtos());
+			configure.execute(task);
+		});
 	}
 
 	/**
@@ -272,6 +280,55 @@ public class ProtobufPlugin implements Plugin<Project> {
 				.set(fromMaven(root, "io.grpc:protoc-gen-grpc-java", GRPC_JAVA_GENERATOR_VERSION));
 			task.getDestination().set(root.getLayout().getBuildDirectory().dir(TOOLS));
 		});
+	}
+
+	/**
+	 * One API: where its {@code .proto} are, and what buf calls them.
+	 * <p>
+	 * buf runs from the proto root and addresses an API by its path relative to that
+	 * root, so the directory to read and the name to pass buf are one path seen from two
+	 * places. Derived from {@link #APIS} here rather than spelled out at each use, which
+	 * is what stops the two from drifting apart when the layout moves.
+	 *
+	 * @param root where buf runs, holding {@code buf.yaml} and every API
+	 * @param name what the API is called, and so what a project's name is matched against
+	 */
+	private record Api(File root, String name) {
+
+		/**
+		 * What buf is passed, which is also what a {@code .proto} imports this API by.
+		 * Written with {@code /} whatever the platform: it is a path buf reads, and
+		 * {@link File} takes one either way.
+		 * @return this API's path beneath the proto root
+		 */
+		String path() {
+			return APIS + "/" + this.name;
+		}
+
+		/**
+		 * The same path, resolved against the root rather than left relative to it.
+		 * @return the directory holding this API's {@code .proto}
+		 */
+		File directory() {
+			return new File(this.root, path());
+		}
+
+		/**
+		 * Whether there is anything here to work on.
+		 * <p>
+		 * A directory can be added before the contract that goes in it is written, and
+		 * buf answers an empty one with a failure rather than with nothing.
+		 * @return whether this API holds a {@code .proto}
+		 */
+		boolean holdsProtos() {
+			try (Stream<Path> files = Files.walk(directory().toPath())) {
+				return files.anyMatch((file) -> file.toString().endsWith(".proto"));
+			}
+			catch (IOException ex) {
+				throw new UncheckedIOException("Failed to look inside " + directory(), ex);
+			}
+		}
+
 	}
 
 }

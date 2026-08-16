@@ -25,8 +25,11 @@ import java.nio.file.StandardCopyOption;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.GradleException;
 import org.gradle.api.file.DirectoryProperty;
+import org.gradle.api.file.RegularFile;
 import org.gradle.api.file.RegularFileProperty;
+import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.InputFile;
+import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.OutputDirectory;
 import org.gradle.api.tasks.PathSensitive;
 import org.gradle.api.tasks.PathSensitivity;
@@ -50,6 +53,20 @@ import org.gradle.api.tasks.TaskAction;
  * @since 0.2.0
  */
 public abstract class DownloadProtoTools extends DefaultTask {
+
+	/**
+	 * What the three are called once installed.
+	 * <p>
+	 * This task chooses the names, so this task is where they are written down: anything
+	 * needing one asks for it below rather than spelling the same path out again, and a
+	 * rename cannot leave the two disagreeing — which is a failure nothing would catch
+	 * until buf ran and said it could not find a plugin.
+	 */
+	private static final String BUF = "buf";
+
+	private static final String PROTOC = "protoc";
+
+	private static final String GRPC_JAVA_GENERATOR = "protoc-gen-grpc-java";
 
 	/**
 	 * The compiler, which reads the {@code .proto} and drives the generators.
@@ -83,13 +100,45 @@ public abstract class DownloadProtoTools extends DefaultTask {
 	@OutputDirectory
 	public abstract DirectoryProperty getDestination();
 
+	/**
+	 * Where buf ended up, said by the task that put it there.
+	 * <p>
+	 * The name is this task's to choose and nobody else's to know: anything wanting to
+	 * run buf asks for it here rather than spelling out the same path again, so the two
+	 * cannot come to disagree. Not an input or an output of anything — it is one of the
+	 * files {@link #getDestination()} already covers, named.
+	 * @return the installed {@code buf}
+	 */
+	@Internal
+	public Provider<RegularFile> getInstalledBuf() {
+		return getDestination().file(BUF);
+	}
+
+	/**
+	 * Where protoc ended up.
+	 * @return the installed {@code protoc}
+	 */
+	@Internal
+	public Provider<RegularFile> getInstalledProtoc() {
+		return getDestination().file(PROTOC);
+	}
+
+	/**
+	 * Where the gRPC generator ended up.
+	 * @return the installed {@code protoc-gen-grpc-java}
+	 */
+	@Internal
+	public Provider<RegularFile> getInstalledGrpcJavaGenerator() {
+		return getDestination().file(GRPC_JAVA_GENERATOR);
+	}
+
 	@TaskAction
 	void install() throws IOException {
 		Path destination = getDestination().get().getAsFile().toPath();
 		Files.createDirectories(destination);
-		install(getBuf(), destination.resolve("buf"));
-		install(getProtoc(), destination.resolve("protoc"));
-		install(getGrpcJavaGenerator(), destination.resolve("protoc-gen-grpc-java"));
+		install(getBuf(), destination.resolve(BUF));
+		install(getProtoc(), destination.resolve(PROTOC));
+		install(getGrpcJavaGenerator(), destination.resolve(GRPC_JAVA_GENERATOR));
 	}
 
 	/**

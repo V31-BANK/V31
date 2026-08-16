@@ -25,20 +25,15 @@ import java.util.stream.Stream;
 
 import javax.inject.Inject;
 
-import org.gradle.api.DefaultTask;
 import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.file.FileSystemOperations;
 import org.gradle.api.file.RegularFileProperty;
-import org.gradle.api.provider.Property;
-import org.gradle.api.tasks.Input;
-import org.gradle.api.tasks.InputDirectory;
 import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.Internal;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.PathSensitive;
 import org.gradle.api.tasks.PathSensitivity;
 import org.gradle.api.tasks.TaskAction;
-import org.gradle.process.ExecOperations;
 
 /**
  * Generates one API's sources into the project.
@@ -56,15 +51,20 @@ import org.gradle.process.ExecOperations;
  * @author Xander Wang
  * @since 0.2.0
  */
-public abstract class GenerateProtoSources extends DefaultTask {
+public abstract class GenerateProtoSources extends BufTask {
 
 	/**
 	 * What buf is told to generate.
 	 * <p>
 	 * A language is added by adding a plugin entry, and nothing else has to change. The
-	 * paths are relative to the proto directory, which is where buf is run from, and
-	 * point at what {@code DownloadProtoTools} put under the build directory — so nothing
-	 * has to be installed first, on any machine.
+	 * generators are left as holes rather than written out: where they are is known only
+	 * to the task that installed them, and a path spelled here would be this file's guess
+	 * at how far {@code proto} sits from the build directory — a guess nothing checks and
+	 * that buf answers, at the end of a build, with a plugin it could not find.
+	 * <p>
+	 * Single-quoted, because the paths that go in the holes are absolute: quoting takes
+	 * care of a space, and single quotes take no escapes, which is what a Windows path
+	 * needs to survive.
 	 */
 	private static final String TEMPLATE = """
 			version: v2
@@ -79,34 +79,33 @@ public abstract class GenerateProtoSources extends DefaultTask {
 
 			plugins:
 			  - protoc_builtin: java
-			    protoc_path: ../build/buf/protoc
+			    protoc_path: '%s'
 			    out: .
-			  - local: ../build/buf/protoc-gen-grpc-java
+			  - local: '%s'
 			    out: .
 			""";
 
 	/**
-	 * Which API this project takes.
-	 * @return the directory under the proto root to generate
-	 */
-	@Input
-	public abstract Property<String> getApi();
-
-	/**
-	 * Fetched by the build rather than found on the {@code PATH}.
-	 * @return the {@code buf} to run
+	 * One of the two generators buf drives.
+	 * <p>
+	 * An input as much as buf itself, and for the same reason: the Java is protoc's
+	 * writing, so a different protoc is a different answer and the sources have to be
+	 * written again. Without this, a version bumped in {@code gradle.properties} reaches
+	 * the installed executable and stops there — buf is unchanged, so this task is
+	 * up to date, and what is compiled stays what the old generator wrote.
+	 * @return {@code protoc}, which writes the messages
 	 */
 	@InputFile
 	@PathSensitive(PathSensitivity.NONE)
-	public abstract RegularFileProperty getBuf();
+	public abstract RegularFileProperty getProtoc();
 
 	/**
-	 * Where buf is run from, so that an API is named the way it is imported.
-	 * @return the proto root, holding {@code buf.yaml} and the APIs
+	 * The other, on the same terms.
+	 * @return {@code protoc-gen-grpc-java}, which writes the service stubs
 	 */
-	@InputDirectory
-	@PathSensitive(PathSensitivity.RELATIVE)
-	public abstract DirectoryProperty getProtoDirectory();
+	@InputFile
+	@PathSensitive(PathSensitivity.NONE)
+	public abstract RegularFileProperty getGrpcJavaGenerator();
 
 	/**
 	 * A source directory, so only the files this task wrote are ever removed from it. Not
@@ -122,9 +121,6 @@ public abstract class GenerateProtoSources extends DefaultTask {
 	public abstract RegularFileProperty getManifest();
 
 	@Inject
-	protected abstract ExecOperations getExecOperations();
-
-	@Inject
 	protected abstract FileSystemOperations getFileSystemOperations();
 
 	@TaskAction
@@ -134,11 +130,7 @@ public abstract class GenerateProtoSources extends DefaultTask {
 		// The whole directory: it holds the last run's output and nothing else.
 		getFileSystemOperations().delete((spec) -> spec.delete(staging));
 		Files.createDirectories(staging);
-		getExecOperations().exec((spec) -> {
-			spec.setWorkingDir(getProtoDirectory().get().getAsFile());
-			spec.commandLine(getBuf().get().getAsFile().getAbsolutePath(), "generate", "--path", getApi().get(),
-					"--output", staging.toString(), "--template", template());
-		});
+		buf("generate", "--path", getApi().get(), "--output", staging.toString(), "--template", template());
 		List<String> written = contentsOf(staging);
 		getFileSystemOperations().copy((spec) -> spec.from(staging).into(getDestination()));
 		Path manifest = getManifest().get().getAsFile().toPath();
@@ -174,7 +166,8 @@ public abstract class GenerateProtoSources extends DefaultTask {
 	private String template() {
 		Path template = getTemporaryDir().toPath().resolve("buf.gen.yaml");
 		try {
-			Files.writeString(template, TEMPLATE);
+			Files.writeString(template, TEMPLATE.formatted(getProtoc().get().getAsFile().getAbsolutePath(),
+					getGrpcJavaGenerator().get().getAsFile().getAbsolutePath()));
 		}
 		catch (IOException ex) {
 			throw new UncheckedIOException("Failed to write " + template, ex);
