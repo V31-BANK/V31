@@ -1,3 +1,19 @@
+/*
+ * Copyright 2026-present the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.v31bank.data.valkey.lock;
 
 import java.time.Duration;
@@ -9,30 +25,25 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.data.redis.core.script.RedisScript;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.BDDMockito.then;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 /**
  * Tests for {@link ValkeyLock}.
  * <p>
- * Stubbing generic Spring Data types means matching on raw {@code RedisScript}
- * and {@code ValueOperations}, which is unavoidable with Mockito and confined to
- * this class.
+ * Stubbing generic Spring Data types means matching on raw {@code RedisScript} and
+ * {@code ValueOperations}, which is unavoidable with Mockito and confined to this class.
  *
  * @author Xander Wang
  * @since 0.2.0
@@ -40,114 +51,122 @@ import static org.mockito.Mockito.when;
 @SuppressWarnings({ "unchecked", "rawtypes" })
 class ValkeyLockTests {
 
-    private static final Duration LEASE = Duration.ofSeconds(30);
+	private static final Duration LEASE = Duration.ofSeconds(30);
 
-    private StringRedisTemplate template;
+	private StringRedisTemplate template;
 
-    private ValueOperations<String, String> values;
+	private ValueOperations<String, String> values;
 
-    private ValkeyLock lock;
+	private ValkeyLock lock;
 
-    @BeforeEach
-    void setUp() {
-        this.template = mock(StringRedisTemplate.class);
-        this.values = mock(ValueOperations.class);
-        when(this.template.opsForValue()).thenReturn(this.values);
-        this.lock = new ValkeyLock(this.template);
-    }
+	@BeforeEach
+	void setUp() {
+		this.template = mock(StringRedisTemplate.class);
+		this.values = mock(ValueOperations.class);
+		given(this.template.opsForValue()).willReturn(this.values);
+		this.lock = new ValkeyLock(this.template);
+	}
 
-    @Test
-    void takesTheLockWhenItIsFree() {
-        when(this.values.setIfAbsent(eq("v31:batch"), any(), eq(LEASE))).thenReturn(true);
-        Optional<String> token = this.lock.acquire("v31:batch", LEASE);
-        assertTrue(token.isPresent());
-        assertEquals(7, UUID.fromString(token.get()).version(), "the token should be a time-ordered identifier");
-    }
+	@Test
+	void takesTheLockWhenItIsFree() {
+		given(this.values.setIfAbsent(eq("v31:batch"), any(), eq(LEASE))).willReturn(true);
+		Optional<String> token = this.lock.acquire("v31:batch", LEASE);
+		assertThat(token).isPresent();
+		assertThat(UUID.fromString(token.get()).version()).as("the token should be a time-ordered identifier")
+			.isEqualTo(7);
+	}
 
-    @Test
-    void doesNotTakeALockSomebodyElseHolds() {
-        when(this.values.setIfAbsent(any(), any(), any(Duration.class))).thenReturn(false);
-        assertTrue(this.lock.acquire("v31:batch", LEASE).isEmpty());
-    }
+	@Test
+	void doesNotTakeALockSomebodyElseHolds() {
+		given(this.values.setIfAbsent(any(), any(), any(Duration.class))).willReturn(false);
+		assertThat(this.lock.acquire("v31:batch", LEASE)).isEmpty();
+	}
 
-    @Test
-    void givesEachHolderADifferentToken() {
-        when(this.values.setIfAbsent(any(), any(), any(Duration.class))).thenReturn(true);
-        assertNotEquals(this.lock.acquire("v31:batch", LEASE), this.lock.acquire("v31:batch", LEASE));
-    }
+	@Test
+	void givesEachHolderADifferentToken() {
+		given(this.values.setIfAbsent(any(), any(), any(Duration.class))).willReturn(true);
+		assertThat(this.lock.acquire("v31:batch", LEASE)).isNotEqualTo(this.lock.acquire("v31:batch", LEASE));
+	}
 
-    @Test
-    void refusesALeaseThatWouldExpireImmediately() {
-        assertThrows(IllegalArgumentException.class, () -> this.lock.acquire("v31:batch", Duration.ZERO));
-        assertThrows(IllegalArgumentException.class, () -> this.lock.acquire("v31:batch", Duration.ofSeconds(-1)));
-    }
+	@Test
+	void refusesALeaseThatWouldExpireImmediately() {
+		assertThatExceptionOfType(IllegalArgumentException.class)
+			.isThrownBy(() -> this.lock.acquire("v31:batch", Duration.ZERO));
+		assertThatExceptionOfType(IllegalArgumentException.class)
+			.isThrownBy(() -> this.lock.acquire("v31:batch", Duration.ofSeconds(-1)));
+	}
 
-    @Test
-    void releasesWithTheTokenItWasGiven() {
-        when(this.template.execute(any(RedisScript.class), anyList(), any())).thenReturn(1L);
-        assertTrue(this.lock.release("v31:batch", "token-a"));
-        ArgumentCaptor<Object> args = ArgumentCaptor.forClass(Object.class);
-        verify(this.template).execute(any(RedisScript.class), eq(List.of("v31:batch")), args.capture());
-        assertEquals("token-a", args.getValue());
-    }
+	@Test
+	void releasesWithTheTokenItWasGiven() {
+		given(this.template.execute(any(RedisScript.class), anyList(), any())).willReturn(1L);
+		assertThat(this.lock.release("v31:batch", "token-a")).isTrue();
+		ArgumentCaptor<Object> args = ArgumentCaptor.forClass(Object.class);
+		then(this.template).should().execute(any(RedisScript.class), eq(List.of("v31:batch")), args.capture());
+		assertThat(args.getValue()).isEqualTo("token-a");
+	}
 
-    @Test
-    void reportsAReleaseThatChangedNothing() {
-        when(this.template.execute(any(RedisScript.class), anyList(), any())).thenReturn(0L);
-        assertFalse(this.lock.release("v31:batch", "token-a"),
-                "a lease that already expired is not this caller's to release");
-    }
+	@Test
+	void reportsAReleaseThatChangedNothing() {
+		given(this.template.execute(any(RedisScript.class), anyList(), any())).willReturn(0L);
+		assertThat(this.lock.release("v31:batch", "token-a"))
+			.as("a lease that already expired is not this caller's to release")
+			.isFalse();
+	}
 
-    @Test
-    void extendsALeaseItStillHolds() {
-        when(this.template.execute(any(RedisScript.class), anyList(), any(), any())).thenReturn(1L);
-        assertTrue(this.lock.extend("v31:batch", "token-a", LEASE));
-        verify(this.template).execute(any(RedisScript.class), eq(List.of("v31:batch")), eq("token-a"),
-                eq(Long.toString(LEASE.toMillis())));
-    }
+	@Test
+	void extendsALeaseItStillHolds() {
+		given(this.template.execute(any(RedisScript.class), anyList(), any(), any())).willReturn(1L);
+		assertThat(this.lock.extend("v31:batch", "token-a", LEASE)).isTrue();
+		then(this.template).should()
+			.execute(any(RedisScript.class), eq(List.of("v31:batch")), eq("token-a"),
+					eq(Long.toString(LEASE.toMillis())));
+	}
 
-    @Test
-    void reportsALeaseThatIsNoLongerItsToExtend() {
-        when(this.template.execute(any(RedisScript.class), anyList(), any(), any())).thenReturn(0L);
-        assertFalse(this.lock.extend("v31:batch", "token-a", LEASE),
-                "a holder that lost its lease has to stop, not carry on");
-    }
+	@Test
+	void reportsALeaseThatIsNoLongerItsToExtend() {
+		given(this.template.execute(any(RedisScript.class), anyList(), any(), any())).willReturn(0L);
+		assertThat(this.lock.extend("v31:batch", "token-a", LEASE))
+			.as("a holder that lost its lease has to stop, not carry on")
+			.isFalse();
+	}
 
-    @Test
-    void refusesToExtendByNothing() {
-        assertThrows(IllegalArgumentException.class, () -> this.lock.extend("v31:batch", "token-a", Duration.ZERO));
-    }
+	@Test
+	void refusesToExtendByNothing() {
+		assertThatExceptionOfType(IllegalArgumentException.class)
+			.isThrownBy(() -> this.lock.extend("v31:batch", "token-a", Duration.ZERO));
+	}
 
-    @Test
-    void runsTheActionWhileHoldingTheLockAndGivesItBack() {
-        when(this.values.setIfAbsent(any(), any(), any(Duration.class))).thenReturn(true);
-        when(this.template.execute(any(RedisScript.class), anyList(), any())).thenReturn(1L);
-        Optional<String> result = this.lock.runExclusively("v31:batch", LEASE, () -> "done");
-        assertEquals(Optional.of("done"), result);
-        verify(this.template).execute(any(RedisScript.class), anyList(), any());
-    }
+	@Test
+	void runsTheActionWhileHoldingTheLockAndGivesItBack() {
+		given(this.values.setIfAbsent(any(), any(), any(Duration.class))).willReturn(true);
+		given(this.template.execute(any(RedisScript.class), anyList(), any())).willReturn(1L);
+		Optional<String> result = this.lock.runExclusively("v31:batch", LEASE, () -> "done");
+		assertThat(result).hasValue("done");
+		then(this.template).should().execute(any(RedisScript.class), anyList(), any());
+	}
 
-    @Test
-    void givesTheLockBackWhenTheActionFails() {
-        when(this.values.setIfAbsent(any(), any(), any(Duration.class))).thenReturn(true);
-        when(this.template.execute(any(RedisScript.class), anyList(), any())).thenReturn(1L);
-        assertThrows(IllegalStateException.class, () -> this.lock.runExclusively("v31:batch", LEASE, () -> {
-            throw new IllegalStateException("boom");
-        }));
-        verify(this.template).execute(any(RedisScript.class), anyList(), any());
-    }
+	@Test
+	void givesTheLockBackWhenTheActionFails() {
+		given(this.values.setIfAbsent(any(), any(), any(Duration.class))).willReturn(true);
+		given(this.template.execute(any(RedisScript.class), anyList(), any())).willReturn(1L);
+		assertThatExceptionOfType(IllegalStateException.class)
+			.isThrownBy(() -> this.lock.runExclusively("v31:batch", LEASE, () -> {
+				throw new IllegalStateException("boom");
+			}));
+		then(this.template).should().execute(any(RedisScript.class), anyList(), any());
+	}
 
-    @Test
-    void doesNotRunTheActionWhenTheLockIsHeld() {
-        when(this.values.setIfAbsent(any(), any(), any(Duration.class))).thenReturn(false);
-        AtomicBoolean ran = new AtomicBoolean();
-        Optional<String> result = this.lock.runExclusively("v31:batch", LEASE, () -> {
-            ran.set(true);
-            return "done";
-        });
-        assertTrue(result.isEmpty());
-        assertFalse(ran.get());
-        verify(this.template, never()).execute(any(RedisScript.class), anyList(), any());
-    }
+	@Test
+	void doesNotRunTheActionWhenTheLockIsHeld() {
+		given(this.values.setIfAbsent(any(), any(), any(Duration.class))).willReturn(false);
+		AtomicBoolean ran = new AtomicBoolean();
+		Optional<String> result = this.lock.runExclusively("v31:batch", LEASE, () -> {
+			ran.set(true);
+			return "done";
+		});
+		assertThat(result).isEmpty();
+		assertThat(ran.get()).isFalse();
+		then(this.template).should(never()).execute(any(RedisScript.class), anyList(), any());
+	}
 
 }

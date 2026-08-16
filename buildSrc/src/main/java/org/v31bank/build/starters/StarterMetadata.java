@@ -22,7 +22,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Properties;
-import java.util.Set;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
@@ -30,9 +29,14 @@ import org.gradle.api.DefaultTask;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ResolvedArtifact;
-import org.gradle.api.file.FileCollection;
+import org.gradle.api.artifacts.component.ComponentIdentifier;
+import org.gradle.api.artifacts.component.ModuleComponentIdentifier;
+import org.gradle.api.artifacts.component.ProjectComponentIdentifier;
+import org.gradle.api.artifacts.result.ResolvedArtifactResult;
+import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Property;
+import org.gradle.api.provider.SetProperty;
 import org.gradle.api.tasks.Classpath;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.OutputFile;
@@ -55,8 +59,6 @@ import org.gradle.api.tasks.TaskAction;
  */
 public abstract class StarterMetadata extends DefaultTask {
 
-	private Configuration dependencies;
-
 	public StarterMetadata() {
 		Project project = getProject();
 		getStarterName().convention(project.provider(project::getName));
@@ -69,13 +71,57 @@ public abstract class StarterMetadata extends DefaultTask {
 	@Input
 	public abstract Property<String> getStarterDescription();
 
+	/**
+	 * What the starter resolves to, as files.
+	 * <p>
+	 * The input, so that the metadata is rewritten whenever the graph moves and not
+	 * otherwise.
+	 * @return the resolved runtime classpath
+	 */
 	@Classpath
-	public FileCollection getDependencies() {
-		return this.dependencies;
+	public abstract ConfigurableFileCollection getDependencyFiles();
+
+	/**
+	 * The same thing as names, which is what actually gets written down.
+	 * <p>
+	 * Worked out from the resolution rather than from the file names, and kept as plain
+	 * strings because a {@link Configuration} cannot be carried into a task's execution —
+	 * the configuration cache cannot serialise one.
+	 * @return the name of each artifact the starter resolves to
+	 */
+	@Input
+	public abstract SetProperty<String> getDependencyNames();
+
+	/**
+	 * Takes a configuration apart into the two things this task needs of it.
+	 * <p>
+	 * Both lazily: nothing is resolved until the metadata is actually written.
+	 * @param dependencies what the starter resolves to
+	 */
+	public void setDependencies(Configuration dependencies) {
+		getDependencyFiles().setFrom(dependencies);
+		getDependencyNames().set(dependencies.getIncoming()
+			.getArtifacts()
+			.getResolvedArtifacts()
+			.map((artifacts) -> artifacts.stream()
+				.map(StarterMetadata::nameOf)
+				.collect(Collectors.toCollection(TreeSet::new))));
 	}
 
-	public void setDependencies(Configuration dependencies) {
-		this.dependencies = dependencies;
+	/**
+	 * What an artifact is called, without its version.
+	 * @param artifact the resolved artifact
+	 * @return the module it came from, or the project
+	 */
+	private static String nameOf(ResolvedArtifactResult artifact) {
+		ComponentIdentifier component = artifact.getId().getComponentIdentifier();
+		if (component instanceof ModuleComponentIdentifier module) {
+			return module.getModule();
+		}
+		if (component instanceof ProjectComponentIdentifier project) {
+			return project.getProjectName();
+		}
+		return component.getDisplayName();
 	}
 
 	@OutputFile
@@ -83,15 +129,10 @@ public abstract class StarterMetadata extends DefaultTask {
 
 	@TaskAction
 	void generateMetadata() throws IOException {
-		Set<String> artifacts = this.dependencies.getResolvedConfiguration()
-			.getResolvedArtifacts()
-			.stream()
-			.map(ResolvedArtifact::getName)
-			.collect(Collectors.toCollection(TreeSet::new));
 		Properties properties = new Properties();
 		properties.setProperty("name", getStarterName().get());
 		properties.setProperty("description", getStarterDescription().get());
-		properties.setProperty("dependencies", String.join(",", artifacts));
+		properties.setProperty("dependencies", String.join(",", getDependencyNames().get()));
 		Path destination = getDestination().getAsFile().get().toPath();
 		Files.createDirectories(destination.getParent());
 		Files.write(destination, store(properties));

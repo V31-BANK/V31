@@ -1,3 +1,19 @@
+/*
+ * Copyright 2026-present the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.v31bank.jooq.autoconfigure;
 
 import java.time.Clock;
@@ -19,14 +35,13 @@ import org.v31bank.jooq.audit.FixedAuditorSupplier;
 
 /**
  * {@link AutoConfiguration Auto-configuration} for V31 jOOQ support: registers a
- * {@link RecordListener} that fills in the identifier and the audit columns as
- * records are written, along with a fallback {@link AuditorSupplier} that says
- * who is acting.
+ * {@link RecordListener} that fills in the identifier and the audit columns as records
+ * are written, along with a fallback {@link AuditorSupplier} that says who is acting.
  * <p>
- * The listener is attached through a {@link DefaultConfigurationCustomizer},
- * which is the seam Spring Boot leaves for adding to the jOOQ configuration it
- * builds. It is appended rather than set, so a listener registered by the
- * application or by another library survives.
+ * The listener is attached through a {@link DefaultConfigurationCustomizer}, which is the
+ * seam Spring Boot leaves for adding to the jOOQ configuration it builds. It is appended
+ * rather than set, so a listener registered by the application or by another library
+ * survives.
  *
  * @author Xander Wang
  * @since 0.2.0
@@ -37,22 +52,21 @@ import org.v31bank.jooq.audit.FixedAuditorSupplier;
 @EnableConfigurationProperties(V31JooqProperties.class)
 public class V31JooqAutoConfiguration {
 
-    @Bean
-    @ConditionalOnMissingBean
-    public AuditorSupplier auditorSupplier(V31JooqProperties properties) {
-        return new FixedAuditorSupplier(properties.getAuditing().getDefaultAuditor());
-    }
+	@Bean
+	@ConditionalOnMissingBean
+	public AuditorSupplier auditorSupplier(V31JooqProperties properties) {
+		return new FixedAuditorSupplier(properties.getAuditing().getDefaultAuditor());
+	}
 
-    @Bean
-    @ConditionalOnMissingBean
-    public AuditRecordListener auditRecordListener(AuditorSupplier auditorSupplier, V31JooqProperties properties) {
-        return new AuditRecordListener(auditorSupplier, Clock.systemUTC(),
-                properties.getIdentifiers().isEnabled());
-    }
+	@Bean
+	@ConditionalOnMissingBean
+	public AuditRecordListener auditRecordListener(AuditorSupplier auditorSupplier, V31JooqProperties properties) {
+		return new AuditRecordListener(auditorSupplier, Clock.systemUTC(), properties.getIdentifiers().isEnabled());
+	}
 
-    @Bean
-    public DefaultConfigurationCustomizer v31JooqAuditConfigurationCustomizer(AuditRecordListener listener) {
-        return (configuration) -> configuration.setAppending(listener);
-    }
+	@Bean
+	public DefaultConfigurationCustomizer v31JooqAuditConfigurationCustomizer(AuditRecordListener listener) {
+		return (configuration) -> configuration.setAppending(listener);
+	}
 
 }

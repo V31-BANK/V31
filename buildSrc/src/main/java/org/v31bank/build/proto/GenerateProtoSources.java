@@ -68,6 +68,15 @@ public abstract class GenerateProtoSources extends DefaultTask {
 	 */
 	private static final String TEMPLATE = """
 			version: v2
+
+			managed:
+			  enabled: true
+			  disable:
+			    - file_option: java_package
+			  override:
+			    - file_option: java_multiple_files
+			      value: true
+
 			plugins:
 			  - protoc_builtin: java
 			    protoc_path: ../build/buf/protoc

@@ -1,0 +1,3 @@
+# Environment Post Processors
+org.springframework.boot.EnvironmentPostProcessor=\
+org.v31bank.web.autoconfigure.V31LoggingCorrelationEnvironmentPostProcessor

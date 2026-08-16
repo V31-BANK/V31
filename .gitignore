@@ -1,5 +1,6 @@
 .gradle
 build/
+generated/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
@@ -22,7 +23,6 @@ CLAUDE.md
 !**/src/test/**/out/
 test-output/
 atlassian-ide-plugin.xml
-
 
 ### Eclipse ###
 .apt_generated

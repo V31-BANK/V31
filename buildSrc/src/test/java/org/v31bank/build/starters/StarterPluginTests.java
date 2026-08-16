@@ -159,8 +159,8 @@ class StarterPluginTests {
 	void describesWhatTheStarterResolvesTo() {
 		Project starter = starter();
 		StarterMetadata metadata = (StarterMetadata) starter.getTasks().getByName("starterMetadata");
-		assertThat(metadata.getDependencies())
-			.isSameAs(starter.getConfigurations().getByName(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME));
+		assertThat(metadata.getDependencyFiles().getFrom())
+			.containsExactly(starter.getConfigurations().getByName(JavaPlugin.RUNTIME_CLASSPATH_CONFIGURATION_NAME));
 		assertThat(metadata.getStarterName().get()).isEqualTo("V31-web-spring-boot-starter");
 	}
 

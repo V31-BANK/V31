@@ -38,9 +38,11 @@ import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.TaskContainer;
 import org.gradle.api.tasks.TaskProvider;
+import org.gradle.language.base.plugins.LifecycleBasePlugin;
 
 import org.v31bank.build.proto.DownloadProtoTools;
 import org.v31bank.build.proto.GenerateProtoSources;
+import org.v31bank.build.proto.LintProto;
 
 /**
  * What a project built from a {@code .proto} is.
@@ -72,7 +74,16 @@ public class ProtobufPlugin implements Plugin<Project> {
 	/** The APIs, and Buf's configuration for them, at the root of the build. */
 	private static final String PROTO = "proto";
 
+	/**
+	 * The one segment every API's package starts with, and so the directory they all sit
+	 * in: buf's {@code PACKAGE_DIRECTORY_MATCH} wants a file's path to spell out its
+	 * package, and every package here begins {@code v31}.
+	 */
+	private static final String PACKAGE_ROOT = "v31";
+
 	private static final String GENERATE_TASK_NAME = "generateProtoSources";
+
+	private static final String LINT_TASK_NAME = "lintProto";
 
 	private static final String TOOLS_TASK_NAME = "downloadProtoTools";
 
@@ -98,6 +109,7 @@ public class ProtobufPlugin implements Plugin<Project> {
 	@Override
 	public void apply(Project project) {
 		project.getPluginManager().apply(JavaLibraryPlugin.class);
+		project.getPluginManager().apply(DeployedPlugin.class);
 		RUNTIME.forEach((coordinate) -> project.getDependencies().add(JavaPlugin.API_CONFIGURATION_NAME, coordinate));
 		apiFor(project).ifPresent((api) -> generate(project, api));
 	}
@@ -134,7 +146,7 @@ public class ProtobufPlugin implements Plugin<Project> {
 	 * such directory
 	 */
 	private Stream<String> apisIn(Project project) {
-		File[] directories = protoDirectory(project).listFiles();
+		File[] directories = apiDirectory(project).listFiles();
 		return (directories != null) ? Stream.of(directories)
 			.filter((file) -> file.isDirectory() && !file.getName().startsWith("."))
 			.map(File::getName) : Stream.empty();
@@ -144,20 +156,35 @@ public class ProtobufPlugin implements Plugin<Project> {
 		return project.getRootProject().file(PROTO);
 	}
 
+	private File apiDirectory(Project project) {
+		return new File(protoDirectory(project), PACKAGE_ROOT);
+	}
+
 	private void generate(Project project, String api) {
 		File proto = protoDirectory(project);
+		File directory = new File(apiDirectory(project), api);
 		TaskProvider<DownloadProtoTools> tools = tools(project.getRootProject());
 		TaskProvider<GenerateProtoSources> generate = project.getTasks()
 			.register(GENERATE_TASK_NAME, GenerateProtoSources.class, (task) -> {
 				task.setDescription("Generates this project's sources from the " + api + " proto.");
-				task.getApi().set(api);
+				// The path buf is given, which is the package spelled out.
+				task.getApi().set(PACKAGE_ROOT + "/" + api);
 				task.getBuf().set(tools.flatMap((installed) -> installed.getDestination().file("buf")));
 				task.getProtoDirectory().set(proto);
 				task.getDestination().set(mainSourceDirectory(project));
 				task.getManifest().set(project.getLayout().getBuildDirectory().file("proto/generated-sources.txt"));
-				task.onlyIf("the " + api + " API has a .proto to generate", (_) -> holdsProtos(new File(proto, api)));
+				task.onlyIf("the " + api + " API has a .proto to generate", (_) -> holdsProtos(directory));
 			});
 		project.getTasks().named(JavaPlugin.COMPILE_JAVA_TASK_NAME).configure((compile) -> compile.dependsOn(generate));
+		TaskProvider<LintProto> lint = project.getTasks().register(LINT_TASK_NAME, LintProto.class, (task) -> {
+			task.setGroup(LifecycleBasePlugin.VERIFICATION_GROUP);
+			task.setDescription("Checks the " + api + " API against the rules in buf.yaml.");
+			task.getApi().set(PACKAGE_ROOT + "/" + api);
+			task.getBuf().set(tools.flatMap((installed) -> installed.getDestination().file("buf")));
+			task.getProtoDirectory().set(proto);
+			task.onlyIf("the " + api + " API has a .proto to check", (_) -> holdsProtos(directory));
+		});
+		project.getTasks().named(LifecycleBasePlugin.CHECK_TASK_NAME).configure((check) -> check.dependsOn(lint));
 	}
 
 	private static boolean holdsProtos(File api) {

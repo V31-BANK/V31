@@ -1,3 +1,19 @@
+/*
+ * Copyright 2026-present the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.v31bank.data.jpa.domain;
 
 import java.time.Instant;
@@ -7,7 +23,6 @@ import jakarta.persistence.Column;
 import jakarta.persistence.EntityListeners;
 import jakarta.persistence.Id;
 import jakarta.persistence.MappedSuperclass;
-
 import org.hibernate.annotations.UuidGenerator;
 import org.springframework.data.annotation.CreatedBy;
 import org.springframework.data.annotation.CreatedDate;
@@ -16,16 +31,15 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 /**
- * Base class for all entities, providing a time-ordered UUIDv7 primary key and
- * audit fields populated automatically by Spring Data JPA auditing.
+ * Base class for all entities, providing a time-ordered UUIDv7 primary key and audit
+ * fields populated automatically by Spring Data JPA auditing.
  * <p>
- * The audit timestamps are {@link Instant}, not {@code LocalDateTime}, and the
- * columns behind them are {@code timestamptz}. A bank settling across time zones
- * has to know the moment a record was written, and a wall-clock reading does not
- * carry one: it is ambiguous for the hour a daylight saving change repeats,
- * impossible for the hour it skips, and unorderable against a row written by a
- * node in another region. An audit trail that cannot be ordered is not an audit
- * trail.
+ * The audit timestamps are {@link Instant}, not {@code LocalDateTime}, and the columns
+ * behind them are {@code timestamptz}. A bank settling across time zones has to know the
+ * moment a record was written, and a wall-clock reading does not carry one: it is
+ * ambiguous for the hour a daylight saving change repeats, impossible for the hour it
+ * skips, and unorderable against a row written by a node in another region. An audit
+ * trail that cannot be ordered is not an audit trail.
  *
  * @author Xander Wang
  * @since 0.2.0
@@ -34,64 +48,64 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 @EntityListeners(AuditingEntityListener.class)
 public abstract class BaseEntity {
 
-    @Id
-    @UuidGenerator(style = UuidGenerator.Style.VERSION_7)
-    private UUID id;
+	@Id
+	@UuidGenerator(style = UuidGenerator.Style.VERSION_7)
+	private UUID id;
 
-    @CreatedBy
-    @Column(name = "created_by", length = 64, updatable = false)
-    private String createdBy;
+	@CreatedBy
+	@Column(name = "created_by", length = 64, updatable = false)
+	private String createdBy;
 
-    @CreatedDate
-    @Column(name = "created_date", updatable = false)
-    private Instant createdDate;
+	@CreatedDate
+	@Column(name = "created_date", updatable = false)
+	private Instant createdDate;
 
-    @LastModifiedBy
-    @Column(name = "last_modified_by", length = 64)
-    private String lastModifiedBy;
+	@LastModifiedBy
+	@Column(name = "last_modified_by", length = 64)
+	private String lastModifiedBy;
 
-    @LastModifiedDate
-    @Column(name = "last_modified_date")
-    private Instant lastModifiedDate;
+	@LastModifiedDate
+	@Column(name = "last_modified_date")
+	private Instant lastModifiedDate;
 
-    public UUID getId() {
-        return this.id;
-    }
+	public UUID getId() {
+		return this.id;
+	}
 
-    public void setId(UUID id) {
-        this.id = id;
-    }
+	public void setId(UUID id) {
+		this.id = id;
+	}
 
-    public String getCreatedBy() {
-        return this.createdBy;
-    }
+	public String getCreatedBy() {
+		return this.createdBy;
+	}
 
-    public void setCreatedBy(String createdBy) {
-        this.createdBy = createdBy;
-    }
+	public void setCreatedBy(String createdBy) {
+		this.createdBy = createdBy;
+	}
 
-    public Instant getCreatedDate() {
-        return this.createdDate;
-    }
+	public Instant getCreatedDate() {
+		return this.createdDate;
+	}
 
-    public void setCreatedDate(Instant createdDate) {
-        this.createdDate = createdDate;
-    }
+	public void setCreatedDate(Instant createdDate) {
+		this.createdDate = createdDate;
+	}
 
-    public String getLastModifiedBy() {
-        return this.lastModifiedBy;
-    }
+	public String getLastModifiedBy() {
+		return this.lastModifiedBy;
+	}
 
-    public void setLastModifiedBy(String lastModifiedBy) {
-        this.lastModifiedBy = lastModifiedBy;
-    }
+	public void setLastModifiedBy(String lastModifiedBy) {
+		this.lastModifiedBy = lastModifiedBy;
+	}
 
-    public Instant getLastModifiedDate() {
-        return this.lastModifiedDate;
-    }
+	public Instant getLastModifiedDate() {
+		return this.lastModifiedDate;
+	}
 
-    public void setLastModifiedDate(Instant lastModifiedDate) {
-        this.lastModifiedDate = lastModifiedDate;
-    }
+	public void setLastModifiedDate(Instant lastModifiedDate) {
+		this.lastModifiedDate = lastModifiedDate;
+	}
 
 }

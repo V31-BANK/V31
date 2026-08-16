@@ -1,15 +1,27 @@
+/*
+ * Copyright 2026-present the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.v31bank.core.money;
 
 import java.math.BigDecimal;
-import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /**
  * Tests for {@link Asset}.
@@ -19,71 +31,74 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class AssetTests {
 
-    @Test
-    void knowsWhatEachAssetDividesInto() {
-        assertEquals(2, Asset.USD.scale());
-        assertEquals(0, Asset.JPY.scale());
-        assertEquals(8, Asset.BTC.scale());
-        assertEquals(18, Asset.ETH.scale());
-        assertEquals(6, Asset.USDC.scale());
-    }
+	@Test
+	void knowsWhatEachAssetDividesInto() {
+		assertThat(Asset.USD.scale()).isEqualTo(2);
+		assertThat(Asset.JPY.scale()).isZero();
+		assertThat(Asset.BTC.scale()).isEqualTo(8);
+		assertThat(Asset.ETH.scale()).isEqualTo(18);
+		assertThat(Asset.USDC.scale()).isEqualTo(6);
+	}
 
-    @Test
-    void separatesOnChainAssetsFromFiat() {
-        assertFalse(Asset.USD.isOnChain());
-        assertTrue(Asset.BTC.isOnChain());
-        assertTrue(Asset.USDC.isOnChain());
-        assertEquals(AssetType.STABLECOIN, Asset.USDC.type());
-    }
+	@Test
+	void separatesOnChainAssetsFromFiat() {
+		assertThat(Asset.USD.isOnChain()).isFalse();
+		assertThat(Asset.BTC.isOnChain()).isTrue();
+		assertThat(Asset.USDC.isOnChain()).isTrue();
+		assertThat(Asset.USDC.type()).isEqualTo(AssetType.STABLECOIN);
+	}
 
-    @Test
-    void normalisesTheCode() {
-        assertEquals(Asset.BTC, new Asset(" btc ", AssetType.CRYPTO, 8));
-        assertEquals(Asset.BTC, Asset.of("btc"));
-    }
+	@Test
+	void normalisesTheCode() {
+		assertThat(new Asset(" btc ", AssetType.CRYPTO, 8)).isEqualTo(Asset.BTC);
+		assertThat(Asset.of("btc")).isEqualTo(Asset.BTC);
+	}
 
-    @Test
-    void rejectsCodesThatAreNotTickers() {
-        assertThrows(IllegalArgumentException.class, () -> new Asset("B", AssetType.CRYPTO, 8));
-        assertThrows(IllegalArgumentException.class, () -> new Asset("BTC-USD", AssetType.CRYPTO, 8));
-        assertThrows(IllegalArgumentException.class, () -> new Asset("", AssetType.CRYPTO, 8));
-    }
+	@Test
+	void rejectsCodesThatAreNotTickers() {
+		assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> new Asset("B", AssetType.CRYPTO, 8));
+		assertThatExceptionOfType(IllegalArgumentException.class)
+			.isThrownBy(() -> new Asset("BTC-USD", AssetType.CRYPTO, 8));
+		assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> new Asset("", AssetType.CRYPTO, 8));
+	}
 
-    @Test
-    void rejectsImpossiblePrecision() {
-        assertThrows(IllegalArgumentException.class, () -> new Asset("XYZ", AssetType.CRYPTO, -1));
-        assertThrows(IllegalArgumentException.class, () -> new Asset("XYZ", AssetType.CRYPTO, Asset.MAX_SCALE + 1));
-    }
+	@Test
+	void rejectsImpossiblePrecision() {
+		assertThatExceptionOfType(IllegalArgumentException.class)
+			.isThrownBy(() -> new Asset("XYZ", AssetType.CRYPTO, -1));
+		assertThatExceptionOfType(IllegalArgumentException.class)
+			.isThrownBy(() -> new Asset("XYZ", AssetType.CRYPTO, Asset.MAX_SCALE + 1));
+	}
 
-    @Test
-    void allowsATokenItDoesNotList() {
-        Asset token = new Asset("PEPE", AssetType.CRYPTO, 18);
-        assertEquals("PEPE", token.code());
-        assertFalse(Asset.known().contains(token));
-    }
+	@Test
+	void allowsATokenItDoesNotList() {
+		Asset token = new Asset("PEPE", AssetType.CRYPTO, 18);
+		assertThat(token.code()).isEqualTo("PEPE");
+		assertThat(Asset.known()).doesNotContain(token);
+	}
 
-    @Test
-    void refusesToGuessAtAnUnknownCode() {
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class, () -> Asset.of("PEPE"));
-        assertTrue(ex.getMessage().contains("No asset is known by the code 'PEPE'"), ex.getMessage());
-        assertEquals(Optional.empty(), Asset.find("PEPE"));
-        assertEquals(Optional.empty(), Asset.find(null));
-    }
+	@Test
+	void refusesToGuessAtAnUnknownCode() {
+		assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> Asset.of("PEPE"))
+			.withMessageContaining("No asset is known by the code 'PEPE'");
+		assertThat(Asset.find("PEPE")).isEmpty();
+		assertThat(Asset.find(null)).isEmpty();
+	}
 
-    @Test
-    void treatsPrecisionAsPartOfIdentity() {
-        assertNotEquals(Asset.USDC, new Asset("USDC", AssetType.STABLECOIN, 18));
-    }
+	@Test
+	void treatsPrecisionAsPartOfIdentity() {
+		assertThat(new Asset("USDC", AssetType.STABLECOIN, 18)).isNotEqualTo(Asset.USDC);
+	}
 
-    @Test
-    void reportsItsSmallestUnit() {
-        assertEquals(new BigDecimal("0.00000001"), Asset.BTC.minorUnit());
-        assertEquals(BigDecimal.ONE, Asset.JPY.minorUnit());
-    }
+	@Test
+	void reportsItsSmallestUnit() {
+		assertThat(Asset.BTC.minorUnit()).isEqualTo(new BigDecimal("0.00000001"));
+		assertThat(Asset.JPY.minorUnit()).isEqualTo(BigDecimal.ONE);
+	}
 
-    @Test
-    void readsAsItsTicker() {
-        assertEquals("BTC", Asset.BTC.toString());
-    }
+	@Test
+	void readsAsItsTicker() {
+		assertThat(Asset.BTC).hasToString("BTC");
+	}
 
 }

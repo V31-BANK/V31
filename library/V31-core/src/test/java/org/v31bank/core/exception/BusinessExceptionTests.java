@@ -1,12 +1,27 @@
+/*
+ * Copyright 2026-present the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.v31bank.core.exception;
 
 import org.junit.jupiter.api.Test;
 
 import org.v31bank.core.response.CommonErrorCode;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /**
  * Tests for {@link BusinessException}.
@@ -16,31 +31,31 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
  */
 class BusinessExceptionTests {
 
-    @Test
-    void fallsBackToTheCodesOwnMessage() {
-        BusinessException exception = new BusinessException(CommonErrorCode.CONFLICT);
-        assertEquals(CommonErrorCode.CONFLICT, exception.getErrorCode());
-        assertEquals(CommonErrorCode.CONFLICT.defaultMessage(), exception.getMessage());
-    }
+	@Test
+	void fallsBackToTheCodesOwnMessage() {
+		BusinessException exception = new BusinessException(CommonErrorCode.CONFLICT);
+		assertThat(exception.getErrorCode()).isEqualTo(CommonErrorCode.CONFLICT);
+		assertThat(exception.getMessage()).isEqualTo(CommonErrorCode.CONFLICT.defaultMessage());
+	}
 
-    @Test
-    void carriesTheMessageDescribingTheOccurrence() {
-        BusinessException exception = new BusinessException(CommonErrorCode.NOT_FOUND, "No wallet exists with id 7");
-        assertEquals("No wallet exists with id 7", exception.getMessage());
-    }
+	@Test
+	void carriesTheMessageDescribingTheOccurrence() {
+		BusinessException exception = new BusinessException(CommonErrorCode.NOT_FOUND, "No wallet exists with id 7");
+		assertThat(exception.getMessage()).isEqualTo("No wallet exists with id 7");
+	}
 
-    @Test
-    void keepsTheFailureItWasTranslatedFrom() {
-        IllegalStateException cause = new IllegalStateException("unique constraint violated");
-        BusinessException exception = new BusinessException(CommonErrorCode.CONFLICT, "Code already in use", cause);
-        assertSame(cause, exception.getCause());
-        assertEquals(409, exception.getErrorCode().httpStatus());
-    }
+	@Test
+	void keepsTheFailureItWasTranslatedFrom() {
+		IllegalStateException cause = new IllegalStateException("unique constraint violated");
+		BusinessException exception = new BusinessException(CommonErrorCode.CONFLICT, "Code already in use", cause);
+		assertThat(exception.getCause()).isSameAs(cause);
+		assertThat(exception.getErrorCode().httpStatus()).isEqualTo(409);
+	}
 
-    @Test
-    void rejectsMissingCode() {
-        assertThrows(NullPointerException.class, () -> new BusinessException(null, "boom"));
-        assertThrows(NullPointerException.class, () -> new BusinessException(null));
-    }
+	@Test
+	void rejectsMissingCode() {
+		assertThatExceptionOfType(NullPointerException.class).isThrownBy(() -> new BusinessException(null, "boom"));
+		assertThatExceptionOfType(NullPointerException.class).isThrownBy(() -> new BusinessException(null));
+	}
 
 }

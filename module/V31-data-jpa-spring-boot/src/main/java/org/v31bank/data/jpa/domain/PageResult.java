@@ -1,3 +1,19 @@
+/*
+ * Copyright 2026-present the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.v31bank.data.jpa.domain;
 
 import java.util.List;
@@ -6,101 +22,101 @@ import java.util.function.Function;
 import org.springframework.data.domain.Page;
 
 /**
- * A page of results returned to callers, decoupling the API surface from Spring
- * Data's {@link Page} and using one-based page numbering.
+ * A page of results returned to callers, decoupling the API surface from Spring Data's
+ * {@link Page} and using one-based page numbering.
  *
  * @param <T> the type of the page content
  * @author Xander Wang
  * @since 0.2.0
  */
-public class PageResult<T> {
+public final class PageResult<T> {
 
-    private final List<T> records;
+	private final List<T> records;
 
-    private final long total;
+	private final long total;
 
-    /**
-     * One-based page number.
-     */
-    private final int pageNumber;
+	/**
+	 * One-based page number.
+	 */
+	private final int pageNumber;
 
-    private final int pageSize;
+	private final int pageSize;
 
-    private PageResult(List<T> records, long total, int pageNumber, int pageSize) {
-        this.records = records;
-        this.total = total;
-        this.pageNumber = pageNumber;
-        this.pageSize = pageSize;
-    }
+	private PageResult(List<T> records, long total, int pageNumber, int pageSize) {
+		this.records = records;
+		this.total = total;
+		this.pageNumber = pageNumber;
+		this.pageSize = pageSize;
+	}
 
-    /**
-     * Create a result from a Spring Data {@link Page}, translating its zero-based
-     * page index to a one-based page number.
-     * @param page the page to convert
-     * @param <T> the type of the page content
-     * @return the converted result
-     */
-    public static <T> PageResult<T> of(Page<T> page) {
-        return new PageResult<>(page.getContent(), page.getTotalElements(), page.getNumber() + 1, page.getSize());
-    }
+	/**
+	 * Create a result from a Spring Data {@link Page}, translating its zero-based page
+	 * index to a one-based page number.
+	 * @param page the page to convert
+	 * @param <T> the type of the page content
+	 * @return the converted result
+	 */
+	public static <T> PageResult<T> of(Page<T> page) {
+		return new PageResult<>(page.getContent(), page.getTotalElements(), page.getNumber() + 1, page.getSize());
+	}
 
-    /**
-     * Create a result from an already paginated list.
-     * @param records the content of the current page
-     * @param total the total number of matching records
-     * @param pageNumber the one-based page number
-     * @param pageSize the page size
-     * @param <T> the type of the page content
-     * @return the result
-     */
-    public static <T> PageResult<T> of(List<T> records, long total, int pageNumber, int pageSize) {
-        return new PageResult<>(List.copyOf(records), total, pageNumber, pageSize);
-    }
+	/**
+	 * Create a result from an already paginated list.
+	 * @param records the content of the current page
+	 * @param total the total number of matching records
+	 * @param pageNumber the one-based page number
+	 * @param pageSize the page size
+	 * @param <T> the type of the page content
+	 * @return the result
+	 */
+	public static <T> PageResult<T> of(List<T> records, long total, int pageNumber, int pageSize) {
+		return new PageResult<>(List.copyOf(records), total, pageNumber, pageSize);
+	}
 
-    /**
-     * Create an empty result for the given query.
-     * @param query the originating query
-     * @param <T> the type of the page content
-     * @return the empty result
-     */
-    public static <T> PageResult<T> empty(PageQuery query) {
-        return new PageResult<>(List.of(), 0, query.getPageNumber(), query.getPageSize());
-    }
+	/**
+	 * Create an empty result for the given query.
+	 * @param query the originating query
+	 * @param <T> the type of the page content
+	 * @return the empty result
+	 */
+	public static <T> PageResult<T> empty(PageQuery query) {
+		return new PageResult<>(List.of(), 0, query.getPageNumber(), query.getPageSize());
+	}
 
-    /**
-     * Return a new result with each record converted by the given function,
-     * keeping the pagination information.
-     * @param converter the conversion to apply to each record
-     * @param <R> the target record type
-     * @return the converted result
-     */
-    public <R> PageResult<R> map(Function<? super T, ? extends R> converter) {
-        return new PageResult<>(this.records.stream().<R>map(converter).toList(), this.total, this.pageNumber,
-                this.pageSize);
-    }
+	/**
+	 * Return a new result with each record converted by the given function, keeping the
+	 * pagination information.
+	 * @param converter the conversion to apply to each record
+	 * @param <R> the target record type
+	 * @return the converted result
+	 */
+	public <R> PageResult<R> map(Function<? super T, ? extends R> converter) {
+		return new PageResult<>(this.records.stream().<R>map(converter).toList(), this.total, this.pageNumber,
+				this.pageSize);
+	}
 
-    public List<T> getRecords() {
-        return this.records;
-    }
+	public List<T> getRecords() {
+		return this.records;
+	}
 
-    public long getTotal() {
-        return this.total;
-    }
+	public long getTotal() {
+		return this.total;
+	}
 
-    public int getPageNumber() {
-        return this.pageNumber;
-    }
+	public int getPageNumber() {
+		return this.pageNumber;
+	}
 
-    public int getPageSize() {
-        return this.pageSize;
-    }
+	public int getPageSize() {
+		return this.pageSize;
+	}
 
-    public int getTotalPages() {
-        return (this.pageSize == 0) ? 0 : (int) Math.ceilDiv(this.total, this.pageSize);
-    }
+	public int getTotalPages() {
+		return (this.pageSize == 0) ? 0 : (int) Math.ceilDiv(this.total, this.pageSize);
+	}
 
-    public boolean hasNext() {
-        return this.pageNumber < getTotalPages();
-    }
+	public boolean hasNext() {
+		return this.pageNumber < getTotalPages();
+	}
 
 }

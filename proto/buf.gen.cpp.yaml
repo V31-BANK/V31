@@ -1,0 +1,6 @@
+version: v2
+plugins:
+  - remote: buf.build/protocolbuffers/cpp
+    out: ./generated/cpp
+  - remote: buf.build/grpc/cpp
+    out: ./generated/cpp

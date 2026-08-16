@@ -1,10 +1,25 @@
+/*
+ * Copyright 2026-present the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.v31bank.data.valkey.util;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /**
  * Tests for {@link ValkeyKeys}.
@@ -14,48 +29,48 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
  */
 class ValkeyKeysTests {
 
-    private final ValkeyKeys keys = new ValkeyKeys("v31");
+	private final ValkeyKeys keys = new ValkeyKeys("v31");
 
-    @Test
-    void putsEverythingUnderThePrefix() {
-        assertEquals("v31:customer:0199-7a", this.keys.of("customer", "0199-7a"));
-        assertEquals("v31:session", this.keys.of("session"));
-    }
+	@Test
+	void putsEverythingUnderThePrefix() {
+		assertThat(this.keys.of("customer", "0199-7a")).isEqualTo("v31:customer:0199-7a");
+		assertThat(this.keys.of("session")).isEqualTo("v31:session");
+	}
 
-    @Test
-    void buildsAPatternForSweepingANamespace() {
-        assertEquals("v31:customer:*", this.keys.patternUnder("customer"));
-    }
+	@Test
+	void buildsAPatternForSweepingANamespace() {
+		assertThat(this.keys.patternUnder("customer")).isEqualTo("v31:customer:*");
+	}
 
-    @Test
-    void refusesASegmentThatWouldEscapeItsNamespace() {
-        IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
-                () -> this.keys.of("session", "7:session:admin"));
-        assertTrue(ex.getMessage().contains("must not contain ':'"), ex.getMessage());
-    }
+	@Test
+	void refusesASegmentThatWouldEscapeItsNamespace() {
+		assertThatExceptionOfType(IllegalArgumentException.class)
+			.isThrownBy(() -> this.keys.of("session", "7:session:admin"))
+			.withMessageContaining("must not contain ':'");
+	}
 
-    @Test
-    void refusesAnEmptySegment() {
-        assertThrows(IllegalArgumentException.class, () -> this.keys.of("customer", ""));
-        assertThrows(IllegalArgumentException.class, () -> this.keys.of("customer", "  "));
-        assertThrows(NullPointerException.class, () -> this.keys.of("customer", null));
-    }
+	@Test
+	void refusesAnEmptySegment() {
+		assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> this.keys.of("customer", ""));
+		assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> this.keys.of("customer", "  "));
+		assertThatExceptionOfType(NullPointerException.class).isThrownBy(() -> this.keys.of("customer", null));
+	}
 
-    @Test
-    void refusesAKeyWithNothingBelowThePrefix() {
-        assertThrows(IllegalArgumentException.class, this.keys::of);
-    }
+	@Test
+	void refusesAKeyWithNothingBelowThePrefix() {
+		assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(this.keys::of);
+	}
 
-    @Test
-    void refusesAPrefixThatIsNotOne() {
-        assertThrows(IllegalArgumentException.class, () -> new ValkeyKeys(""));
-        assertThrows(IllegalArgumentException.class, () -> new ValkeyKeys("v31:cache"));
-        assertThrows(NullPointerException.class, () -> new ValkeyKeys(null));
-    }
+	@Test
+	void refusesAPrefixThatIsNotOne() {
+		assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> new ValkeyKeys(""));
+		assertThatExceptionOfType(IllegalArgumentException.class).isThrownBy(() -> new ValkeyKeys("v31:cache"));
+		assertThatExceptionOfType(NullPointerException.class).isThrownBy(() -> new ValkeyKeys(null));
+	}
 
-    @Test
-    void reportsItsPrefix() {
-        assertEquals("v31", this.keys.getPrefix());
-    }
+	@Test
+	void reportsItsPrefix() {
+		assertThat(this.keys.getPrefix()).isEqualTo("v31");
+	}
 
 }

@@ -1,10 +1,24 @@
-package org.v31bank.core.response;
+/*
+ * Copyright 2026-present the original author or authors.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *      https://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 
-import java.util.Optional;
+package org.v31bank.core.response;
 
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.assertj.core.api.Assertions.assertThat;
 
 /**
  * Tests for {@link CommonErrorCode}.
@@ -14,24 +28,24 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  */
 class CommonErrorCodeTests {
 
-    @Test
-    void reportsItsNameAsTheWireCode() {
-        assertEquals("NOT_FOUND", CommonErrorCode.NOT_FOUND.code());
-        assertEquals(404, CommonErrorCode.NOT_FOUND.httpStatus());
-    }
+	@Test
+	void reportsItsNameAsTheWireCode() {
+		assertThat(CommonErrorCode.NOT_FOUND.code()).isEqualTo("NOT_FOUND");
+		assertThat(CommonErrorCode.NOT_FOUND.httpStatus()).isEqualTo(404);
+	}
 
-    @Test
-    void findsACodeByItsWireForm() {
-        assertEquals(Optional.of(CommonErrorCode.CONFLICT), CommonErrorCode.find("CONFLICT"));
-        assertEquals(Optional.of(CommonErrorCode.UNPROCESSABLE), CommonErrorCode.find("UNPROCESSABLE"));
-    }
+	@Test
+	void findsACodeByItsWireForm() {
+		assertThat(CommonErrorCode.find("CONFLICT")).contains(CommonErrorCode.CONFLICT);
+		assertThat(CommonErrorCode.find("UNPROCESSABLE")).contains(CommonErrorCode.UNPROCESSABLE);
+	}
 
-    @Test
-    void doesNotFindWhatItDoesNotDeclare() {
-        assertEquals(Optional.empty(), CommonErrorCode.find("CATEGORY_HAS_CHILDREN"));
-        assertEquals(Optional.empty(), CommonErrorCode.find("conflict"));
-        assertEquals(Optional.empty(), CommonErrorCode.find(""));
-        assertEquals(Optional.empty(), CommonErrorCode.find(null));
-    }
+	@Test
+	void doesNotFindWhatItDoesNotDeclare() {
+		assertThat(CommonErrorCode.find("CATEGORY_HAS_CHILDREN")).isEmpty();
+		assertThat(CommonErrorCode.find("conflict")).isEmpty();
+		assertThat(CommonErrorCode.find("")).isEmpty();
+		assertThat(CommonErrorCode.find(null)).isEmpty();
+	}
 
 }

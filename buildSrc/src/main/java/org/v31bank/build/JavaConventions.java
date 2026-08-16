@@ -162,15 +162,6 @@ class JavaConventions {
 		});
 		configurations.matching(JavaConventions::needsManagedVersions)
 			.all((configuration) -> configuration.extendsFrom(dependencyManagement));
-
-		// The protobuf plugin sets the parents of its own resolvable configurations
-		// after creating them, discarding whatever was added in between. Adding it
-		// again once the project is configured is what makes it stick.
-		project.getPluginManager()
-			.withPlugin("com.google.protobuf",
-					(_) -> project.afterEvaluate((_) -> configurations.matching(JavaConventions::needsManagedVersions)
-						.all((configuration) -> configuration.extendsFrom(dependencyManagement))));
-
 		Dependency platform = project.getDependencies()
 			.enforcedPlatform(
 					project.getDependencies().project(Collections.singletonMap("path", INTERNAL_DEPENDENCIES)));
