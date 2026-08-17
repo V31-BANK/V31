@@ -23,11 +23,11 @@ import org.gradle.api.Project;
 import org.gradle.api.artifacts.Dependency;
 import org.gradle.api.file.FileTree;
 import org.gradle.api.plugins.JavaPlugin;
-import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.provider.Provider;
-import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
+
+import org.v31bank.build.util.SourceSets;
 
 /**
  * Conventions for the services whose schema is owned by Flyway.
@@ -80,12 +80,7 @@ class FlywayConventions {
 	}
 
 	private FileTree migrations(Project project) {
-		return project.getExtensions()
-			.getByType(JavaPluginExtension.class)
-			.getSourceSets()
-			.getByName(SourceSet.MAIN_SOURCE_SET_NAME)
-			.getResources()
-			.matching((sql) -> sql.include(MIGRATIONS));
+		return SourceSets.of(project).main().resources().unwrap().matching((sql) -> sql.include(MIGRATIONS));
 	}
 
 	/**

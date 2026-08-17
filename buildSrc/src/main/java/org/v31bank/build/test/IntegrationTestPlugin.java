@@ -19,7 +19,6 @@ package org.v31bank.build.test;
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.plugins.JavaPlugin;
-import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.SourceSetContainer;
 import org.gradle.api.tasks.TaskProvider;
@@ -28,6 +27,8 @@ import org.gradle.language.base.plugins.LifecycleBasePlugin;
 import org.gradle.plugins.ide.idea.IdeaPlugin;
 import org.gradle.plugins.ide.idea.model.IdeaModel;
 import org.gradle.plugins.ide.idea.model.IdeaModule;
+
+import org.v31bank.build.util.SourceSets;
 
 /**
  * Adds an {@code intTest} source set and task for tests that need more than the project
@@ -88,9 +89,9 @@ public class IntegrationTestPlugin implements Plugin<Project> {
 	}
 
 	private SourceSet createSourceSet(Project project) {
-		SourceSetContainer sourceSets = project.getExtensions().getByType(JavaPluginExtension.class).getSourceSets();
+		SourceSetContainer sourceSets = SourceSets.of(project).unwrap();
 		SourceSet intTestSourceSet = sourceSets.create(INT_TEST_SOURCE_SET_NAME);
-		SourceSet main = sourceSets.getByName(SourceSet.MAIN_SOURCE_SET_NAME);
+		SourceSet main = SourceSets.of(project).main().unwrap();
 		intTestSourceSet.setCompileClasspath(intTestSourceSet.getCompileClasspath().plus(main.getOutput()));
 		intTestSourceSet.setRuntimeClasspath(intTestSourceSet.getRuntimeClasspath().plus(main.getOutput()));
 		return intTestSourceSet;

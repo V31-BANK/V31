@@ -34,9 +34,7 @@ import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.file.RegularFile;
 import org.gradle.api.plugins.JavaLibraryPlugin;
 import org.gradle.api.plugins.JavaPlugin;
-import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.provider.Provider;
-import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.TaskContainer;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
@@ -45,6 +43,7 @@ import org.v31bank.build.proto.BufTask;
 import org.v31bank.build.proto.DownloadProtoTools;
 import org.v31bank.build.proto.GenerateProtoSources;
 import org.v31bank.build.proto.LintProto;
+import org.v31bank.build.util.SourceSets;
 
 /**
  * Generates a project's Java sources from the {@code .proto} it is named after.
@@ -136,7 +135,7 @@ public class ProtobufPlugin implements Plugin<Project> {
 					task.setDescription("Generates this project's sources from the " + api.name() + " proto.");
 					task.getProtoc().set(tools.flatMap(DownloadProtoTools::getInstalledProtoc));
 					task.getGrpcJavaGenerator().set(tools.flatMap(DownloadProtoTools::getInstalledGrpcJavaGenerator));
-					task.getDestination().set(mainSourceDirectory(project));
+					task.getDestination().set(SourceSets.of(project).main().java().directory());
 					task.getManifest().set(project.getLayout().getBuildDirectory().file("proto/generated-sources.txt"));
 				});
 		project.getTasks().named(JavaPlugin.COMPILE_JAVA_TASK_NAME).configure((compile) -> compile.dependsOn(generate));
@@ -156,17 +155,6 @@ public class ProtobufPlugin implements Plugin<Project> {
 			task.onlyIf("the " + api.name() + " API has a .proto", (_) -> api.holdsProtos());
 			configure.execute(task);
 		});
-	}
-
-	private File mainSourceDirectory(Project project) {
-		return project.getExtensions()
-			.getByType(JavaPluginExtension.class)
-			.getSourceSets()
-			.getByName(SourceSet.MAIN_SOURCE_SET_NAME)
-			.getJava()
-			.getSrcDirs()
-			.iterator()
-			.next();
 	}
 
 	private Provider<RegularFile> fromMaven(Project project, String coordinate, String version) {
