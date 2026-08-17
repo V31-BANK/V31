@@ -42,15 +42,26 @@ import org.v31bank.ledger.domain.constant.LedgerAccountType;
 public class LedgerAccount extends BaseEntity {
 
 	/**
+	 * The longest code the column holds. Declared here so the mapping, the use case and
+	 * the request record all read the same number.
+	 */
+	public static final int CODE_MAX_LENGTH = 32;
+
+	/**
+	 * The longest name the column holds.
+	 */
+	public static final int NAME_MAX_LENGTH = 100;
+
+	/**
 	 * The account code, unique and quoted in every posting.
 	 */
-	@Column(name = "code", length = 32, nullable = false)
+	@Column(name = "code", length = CODE_MAX_LENGTH, nullable = false)
 	private String code;
 
 	/**
 	 * The display name.
 	 */
-	@Column(name = "name", length = 100, nullable = false)
+	@Column(name = "name", length = NAME_MAX_LENGTH, nullable = false)
 	private String name;
 
 	/**

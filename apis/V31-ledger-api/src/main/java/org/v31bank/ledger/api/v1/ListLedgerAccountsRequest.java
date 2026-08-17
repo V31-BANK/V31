@@ -70,7 +70,7 @@ private static final long serialVersionUID = 0L;
   private int pageSize_ = 0;
   /**
    * <pre>
-   * Zero means the server's default; anything above its maximum is clamped.
+   * Zero means the server's default of 10; anything above 500 is clamped to it.
    * </pre>
    *
    * <code>int32 page_size = 2 [json_name = "pageSize"];</code>
@@ -607,7 +607,7 @@ private static final long serialVersionUID = 0L;
     private int pageSize_ ;
     /**
      * <pre>
-     * Zero means the server's default; anything above its maximum is clamped.
+     * Zero means the server's default of 10; anything above 500 is clamped to it.
      * </pre>
      *
      * <code>int32 page_size = 2 [json_name = "pageSize"];</code>
@@ -619,7 +619,7 @@ private static final long serialVersionUID = 0L;
     }
     /**
      * <pre>
-     * Zero means the server's default; anything above its maximum is clamped.
+     * Zero means the server's default of 10; anything above 500 is clamped to it.
      * </pre>
      *
      * <code>int32 page_size = 2 [json_name = "pageSize"];</code>
@@ -635,7 +635,7 @@ private static final long serialVersionUID = 0L;
     }
     /**
      * <pre>
-     * Zero means the server's default; anything above its maximum is clamped.
+     * Zero means the server's default of 10; anything above 500 is clamped to it.
      * </pre>
      *
      * <code>int32 page_size = 2 [json_name = "pageSize"];</code>

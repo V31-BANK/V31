@@ -23,11 +23,19 @@ public interface UpdateLedgerAccountRequestOrBuilder extends
       getIdBytes();
 
   /**
+   * <pre>
+   * Unique across accounts. At most 32 characters.
+   * </pre>
+   *
    * <code>string code = 2 [json_name = "code"];</code>
    * @return The code.
    */
   java.lang.String getCode();
   /**
+   * <pre>
+   * Unique across accounts. At most 32 characters.
+   * </pre>
+   *
    * <code>string code = 2 [json_name = "code"];</code>
    * @return The bytes for code.
    */
@@ -35,11 +43,19 @@ public interface UpdateLedgerAccountRequestOrBuilder extends
       getCodeBytes();
 
   /**
+   * <pre>
+   * At most 100 characters.
+   * </pre>
+   *
    * <code>string name = 3 [json_name = "name"];</code>
    * @return The name.
    */
   java.lang.String getName();
   /**
+   * <pre>
+   * At most 100 characters.
+   * </pre>
+   *
    * <code>string name = 3 [json_name = "name"];</code>
    * @return The bytes for name.
    */

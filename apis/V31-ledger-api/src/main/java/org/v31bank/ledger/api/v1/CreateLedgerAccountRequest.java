@@ -6,6 +6,12 @@
 package org.v31bank.ledger.api.v1;
 
 /**
+ * <pre>
+ * Every field is required. A proto3 scalar has no presence, so an omitted one
+ * arrives as an empty string or an unspecified enum; both are refused with
+ * INVALID_ARGUMENT rather than stored.
+ * </pre>
+ *
  * Protobuf type {@code v31.ledger.v1.CreateLedgerAccountRequest}
  */
 @com.google.protobuf.Generated
@@ -55,6 +61,10 @@ private static final long serialVersionUID = 0L;
   @SuppressWarnings("serial")
   private volatile java.lang.Object code_ = "";
   /**
+   * <pre>
+   * Unique across accounts. At most 32 characters.
+   * </pre>
+   *
    * <code>string code = 1 [json_name = "code"];</code>
    * @return The code.
    */
@@ -72,6 +82,10 @@ private static final long serialVersionUID = 0L;
     }
   }
   /**
+   * <pre>
+   * Unique across accounts. At most 32 characters.
+   * </pre>
+   *
    * <code>string code = 1 [json_name = "code"];</code>
    * @return The bytes for code.
    */
@@ -94,6 +108,10 @@ private static final long serialVersionUID = 0L;
   @SuppressWarnings("serial")
   private volatile java.lang.Object name_ = "";
   /**
+   * <pre>
+   * At most 100 characters.
+   * </pre>
+   *
    * <code>string name = 2 [json_name = "name"];</code>
    * @return The name.
    */
@@ -111,6 +129,10 @@ private static final long serialVersionUID = 0L;
     }
   }
   /**
+   * <pre>
+   * At most 100 characters.
+   * </pre>
+   *
    * <code>string name = 2 [json_name = "name"];</code>
    * @return The bytes for name.
    */
@@ -328,6 +350,12 @@ private static final long serialVersionUID = 0L;
     return builder;
   }
   /**
+   * <pre>
+   * Every field is required. A proto3 scalar has no presence, so an omitted one
+   * arrives as an empty string or an unspecified enum; both are refused with
+   * INVALID_ARGUMENT rather than stored.
+   * </pre>
+   *
    * Protobuf type {@code v31.ledger.v1.CreateLedgerAccountRequest}
    */
   public static final class Builder extends
@@ -493,6 +521,10 @@ private static final long serialVersionUID = 0L;
 
     private java.lang.Object code_ = "";
     /**
+     * <pre>
+     * Unique across accounts. At most 32 characters.
+     * </pre>
+     *
      * <code>string code = 1 [json_name = "code"];</code>
      * @return The code.
      */
@@ -509,6 +541,10 @@ private static final long serialVersionUID = 0L;
       }
     }
     /**
+     * <pre>
+     * Unique across accounts. At most 32 characters.
+     * </pre>
+     *
      * <code>string code = 1 [json_name = "code"];</code>
      * @return The bytes for code.
      */
@@ -526,6 +562,10 @@ private static final long serialVersionUID = 0L;
       }
     }
     /**
+     * <pre>
+     * Unique across accounts. At most 32 characters.
+     * </pre>
+     *
      * <code>string code = 1 [json_name = "code"];</code>
      * @param value The code to set.
      * @return This builder for chaining.
@@ -539,6 +579,10 @@ private static final long serialVersionUID = 0L;
       return this;
     }
     /**
+     * <pre>
+     * Unique across accounts. At most 32 characters.
+     * </pre>
+     *
      * <code>string code = 1 [json_name = "code"];</code>
      * @return This builder for chaining.
      */
@@ -549,6 +593,10 @@ private static final long serialVersionUID = 0L;
       return this;
     }
     /**
+     * <pre>
+     * Unique across accounts. At most 32 characters.
+     * </pre>
+     *
      * <code>string code = 1 [json_name = "code"];</code>
      * @param value The bytes for code to set.
      * @return This builder for chaining.
@@ -565,6 +613,10 @@ private static final long serialVersionUID = 0L;
 
     private java.lang.Object name_ = "";
     /**
+     * <pre>
+     * At most 100 characters.
+     * </pre>
+     *
      * <code>string name = 2 [json_name = "name"];</code>
      * @return The name.
      */
@@ -581,6 +633,10 @@ private static final long serialVersionUID = 0L;
       }
     }
     /**
+     * <pre>
+     * At most 100 characters.
+     * </pre>
+     *
      * <code>string name = 2 [json_name = "name"];</code>
      * @return The bytes for name.
      */
@@ -598,6 +654,10 @@ private static final long serialVersionUID = 0L;
       }
     }
     /**
+     * <pre>
+     * At most 100 characters.
+     * </pre>
+     *
      * <code>string name = 2 [json_name = "name"];</code>
      * @param value The name to set.
      * @return This builder for chaining.
@@ -611,6 +671,10 @@ private static final long serialVersionUID = 0L;
       return this;
     }
     /**
+     * <pre>
+     * At most 100 characters.
+     * </pre>
+     *
      * <code>string name = 2 [json_name = "name"];</code>
      * @return This builder for chaining.
      */
@@ -621,6 +685,10 @@ private static final long serialVersionUID = 0L;
       return this;
     }
     /**
+     * <pre>
+     * At most 100 characters.
+     * </pre>
+     *
      * <code>string name = 2 [json_name = "name"];</code>
      * @param value The bytes for name to set.
      * @return This builder for chaining.

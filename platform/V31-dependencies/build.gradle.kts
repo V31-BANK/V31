@@ -26,6 +26,7 @@ javaPlatform {
 }
 
 val springBootVersion = providers.gradleProperty("springBootVersion").get()
+val protocVersion = providers.gradleProperty("protocVersion").get()
 // The one thing another build imports. It settles two sets of versions at once: V31's
 // own artifacts, and the third-party libraries they were built and tested against. A
 // consumer that imports it names an artifact without a version and gets a combination
@@ -43,6 +44,7 @@ dependencies {
     // interfaces changed between the two. Importing the gRPC BOM settles every
     // artifact on one version.
     api(platform("io.grpc:grpc-bom:1.81.0"))
+    api(platform("com.google.protobuf:protobuf-bom:$protocVersion"))
 
     constraints {
         api("com.google.guava:guava:33.6.0-jre")

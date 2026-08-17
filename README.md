@@ -53,6 +53,8 @@ domain
 │                  refuses to go negative rather than trusting its callers to check.
 ├── valueobject    Immutable, identity-free types compared by value: Money, Email,
 │                  AccountNumber. They carry behaviour, unlike DTOs.
+├── constant       Enums naming the states and kinds the rules branch on: CustomerStatus,
+│                  NotificationChannel. Domain vocabulary, so not in Presentation.
 ├── service        Business rules that span aggregates and therefore belong to no single
 │                  entity. No persistence, no transactions, no I/O.
 ├── event          Facts expressed in domain language, recorded by aggregates and published
@@ -62,17 +64,33 @@ domain
 └── exception      Violations of business rules, such as an insufficient balance.
 ```
 
-### `infrastructure` — adapters to the outside world
+### `infra` — adapters to the outside world
 
 Implements the output ports Application declares. Everything technology-specific lives
-here, so swapping a technology touches this layer alone.
+here, so swapping a technology touches this layer alone. The package is `infra`, not
+`infrastructure`.
+
+Each technology group splits the same way: `adapter` holds the class that implements a
+port, and a sibling named after the technology holds what that class talks to. The port
+implementation therefore never appears in the same package as the library it hides.
 
 ```
-infrastructure
-├── persistence    Storage adapters, suffixed PersistenceAdapter, with the Spring Data
-│                  interfaces underneath in a jpa subpackage.
-├── cache          Cache adapters, kept apart from persistence so caching is a decision
-│                  the application layer never sees.
+infra
+├── persistence
+│   ├── adapter    Storage adapters, suffixed PersistenceAdapter.
+│   ├── jpa        Spring Data interfaces, prefixed Jpa (JpaCustomerRepository).
+│   └── jooq       Generated-style table and record types for a service using jOOQ.
+├── cache
+│   ├── adapter    Cache adapters, kept apart from persistence so caching is a decision
+│   │              the application layer never sees.
+│   └── valkey     Key layouts and Valkey-specific types.
+├── grpc
+│   ├── server     Inbound gRPC services, suffixed GrpcService. An entry point that does
+│   │              not sit in Presentation, because the generated base class it extends
+│   │              belongs to the transport.
+│   ├── client     Stub configuration for calling another service.
+│   └── adapter    Where generated types and the domain model meet — the outbound port
+│                  implementation, and the mapping either direction.
 ├── messaging      Publishers and consumers — the outbox relay, Kafka listeners.
 ├── external       Clients for other services and third-party APIs, suffixed by their
 │                  transport (ExchangeRateHttpAdapter).
@@ -102,15 +120,18 @@ presentation
 
 One vocabulary per layer, so a name states where it belongs.
 
-| Element                | Suffix               | Example                        |
-|------------------------|----------------------|--------------------------------|
-| Input port             | `UseCase`            | `CustomerUseCase`              |
-| Output port            | `Port`               | `CustomerPort`                 |
-| Use case implementation| `Service`            | `CustomerService`              |
-| Persistence adapter    | `PersistenceAdapter` | `CustomerPersistenceAdapter`   |
-| External adapter       | `<Transport>Adapter` | `ExchangeRateHttpAdapter`      |
-| Spring Data interface  | `JpaRepository`      | `CustomerJpaRepository`        |
-| Wire contract          | `Request` / `Response`| `CustomerRequest`             |
+| Element                | Affix                  | Example                        |
+|------------------------|------------------------|--------------------------------|
+| Input port             | `UseCase`              | `CustomerUseCase`              |
+| Output port            | `Port`                 | `CustomerPort`                 |
+| Use case implementation| `Service`              | `CustomerService`              |
+| Persistence adapter    | `PersistenceAdapter`   | `CustomerPersistenceAdapter`   |
+| External adapter       | `<Transport>Adapter`   | `ExchangeRateHttpAdapter`      |
+| Spring Data interface  | `Jpa` prefix           | `JpaCustomerRepository`        |
+| Inbound gRPC service   | `GrpcService`          | `LedgerAccountGrpcService`     |
+| gRPC stub configuration| `StubConfiguration`    | `LedgerAccountStubConfiguration` |
+| Proto mapping          | `Protos`               | `LedgerAccountProtos`          |
+| Wire contract          | `Request` / `Response` | `CustomerRequest`              |
 
 `Impl` appears nowhere: an interface named `CustomerUseCase` and an implementation named
 `CustomerService` already read differently.

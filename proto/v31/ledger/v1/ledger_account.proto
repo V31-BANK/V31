@@ -58,8 +58,13 @@ message LedgerAccount {
   google.protobuf.Timestamp last_modified_date = 7;
 }
 
+// Every field is required. A proto3 scalar has no presence, so an omitted one
+// arrives as an empty string or an unspecified enum; both are refused with
+// INVALID_ARGUMENT rather than stored.
 message CreateLedgerAccountRequest {
+  // Unique across accounts. At most 32 characters.
   string code = 1;
+  // At most 100 characters.
   string name = 2;
   LedgerAccountType type = 3;
 }
@@ -87,9 +92,17 @@ message DeleteLedgerAccountResponse {
   LedgerAccount ledger_account = 1;
 }
 
+// A full replacement: every field is written as sent, so send the current value
+// for anything not being changed. Status is the one exception.
+//
+// Code, name and type are required, on the same terms as on create: an omitted
+// one arrives empty or unspecified and is refused with INVALID_ARGUMENT, never
+// written.
 message UpdateLedgerAccountRequest {
   string id = 1;
+  // Unique across accounts. At most 32 characters.
   string code = 2;
+  // At most 100 characters.
   string name = 3;
   LedgerAccountType type = 4;
   // Leave unspecified to keep the current status.
@@ -103,7 +116,7 @@ message DeleteLedgerAccountRequest {
 message ListLedgerAccountsRequest {
   // One-based, to match the rest of the platform. Zero means the first page.
   int32 page_number = 1;
-  // Zero means the server's default; anything above its maximum is clamped.
+  // Zero means the server's default of 10; anything above 500 is clamped to it.
   int32 page_size = 2;
   // Fragment matched against the code, case-insensitive. Empty means no filter.
   string code = 3;
