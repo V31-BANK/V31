@@ -26,7 +26,7 @@ description = "Resolves V31 from a repository the way a consumer does"
 // Every project whose artifacts a consumer can name, listed rather than derived. The
 // BOM names the same set by hand; listing it again here is what makes the two
 // disagreeing show up as a failing test instead of as a consumer's problem.
-val v31Repository = configurations.create("v31Repository")
+val testRepository = configurations.create("testRepository")
 
 dependencies {
     for (path in listOf(
@@ -51,35 +51,26 @@ dependencies {
         ":starter:V31-jooq-spring-boot-starter",
         ":starter:V31-web-spring-boot-starter",
     )) {
-        v31Repository(project(mapOf("path" to path, "configuration" to "mavenRepository")))
+        testRepository(project(mapOf("path" to path, "configuration" to "mavenRepository")))
     }
-
-	add(
-		"implementation",
-		project(
-			mapOf(
-				"path" to ":starter:V31-data-jpa-spring-boot-starter",
-				"configuration" to "starterMetadata"
-			)
-		)
-	)
 
     intTestImplementation("org.junit.jupiter:junit-jupiter")
     intTestImplementation("org.assertj:assertj-core")
     intTestImplementation(gradleTestKit())
 }
 
-val v31MavenRepository = tasks.register<Sync>("v31MavenRepository") {
+val syncTestRepository = tasks.register<Sync>("syncTestRepository") {
     group = LifecycleBasePlugin.VERIFICATION_GROUP
     description = "Gathers the published V31 artifacts into one repository."
-    from(v31Repository)
-    into(layout.buildDirectory.dir("v31-maven-repository"))
+    from(testRepository)
+    into(layout.buildDirectory.dir("test-repository"))
 }
 
 tasks.named<Test>("intTest") {
-    inputs.files(v31MavenRepository)
+	println(layout.buildDirectory.dir("test-repository").get().asFile.absolutePath)
+    inputs.files(syncTestRepository)
         .withPathSensitivity(PathSensitivity.RELATIVE)
-        .withPropertyName("v31MavenRepository")
-    systemProperty("v31.repository", layout.buildDirectory.dir("v31-maven-repository").get().asFile.absolutePath)
-    systemProperty("v31.version", project.version.toString())
+        .withPropertyName("testRepository")
+    systemProperty("testRepository", layout.buildDirectory.dir("test-repository").get().asFile.absolutePath)
+    systemProperty("v31Version", project.version.toString())
 }

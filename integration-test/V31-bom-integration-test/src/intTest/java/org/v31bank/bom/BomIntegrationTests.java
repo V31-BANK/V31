@@ -55,9 +55,9 @@ class BomIntegrationTests {
 			"V31-web-spring-boot", "V31-data-jpa-spring-boot-starter", "V31-data-valkey-spring-boot-starter",
 			"V31-grpc-spring-boot-starter", "V31-jooq-spring-boot-starter", "V31-web-spring-boot-starter");
 
-	private static final String REPOSITORY = System.getProperty("v31.repository");
+	private static final String REPOSITORY = System.getProperty("testRepository");
 
-	private static final String VERSION = System.getProperty("v31.version");
+	private static final String VERSION = System.getProperty("v31Version");
 
 	@TempDir
 	private Path consumer;
