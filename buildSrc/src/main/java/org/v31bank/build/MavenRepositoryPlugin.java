@@ -17,12 +17,6 @@
 package org.v31bank.build;
 
 import java.io.File;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Comparator;
-import java.util.stream.Stream;
 
 import org.gradle.api.Action;
 import org.gradle.api.Plugin;
@@ -37,13 +31,22 @@ import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.publish.PublishingExtension;
 import org.gradle.api.publish.maven.plugins.MavenPublishPlugin;
 
+import org.v31bank.build.util.Directories;
+
 /**
  * Publishes a project into a Maven repository inside its own build directory.
  * <p>
- * Not declared by a project; {@link DeployedPlugin} applies it. It lets the build resolve
- * V31 by coordinate the way a consumer does, without publishing anywhere real and without
- * touching the developer's {@code ~/.m2}. One project's own artifacts are not enough to
- * resolve it, so the V31 projects it depends on contribute their repositories too.
+ * Declared by the project itself, and applied by {@link DeployedPlugin} for the projects
+ * that publish:
+ *
+ * <pre class="code">
+ * plugins {
+ *     id("org.v31bank.maven-repository")
+ * }
+ * </pre>
+ *
+ * It lets the build resolve V31 by coordinate the way a consumer does, without publishing
+ * anywhere real and without touching the developer's {@code ~/.m2}.
  *
  * @author Xander Wang
  * @since 0.2.0
@@ -55,7 +58,11 @@ public class MavenRepositoryPlugin implements Plugin<Project> {
 	 */
 	public static final String MAVEN_REPOSITORY_CONFIGURATION_NAME = "mavenRepository";
 
+	/** What {@link DeployedPlugin} calls the publication it creates. */
 	private static final String PUBLISH_TASK_NAME = "publishV31PublicationToProjectRepository";
+
+	/** What {@code java-gradle-plugin} calls the one it creates on a project's behalf. */
+	private static final String PLUGIN_PUBLISH_TASK_NAME = "publishPluginMavenPublicationToProjectRepository";
 
 	private static final String REPOSITORY_NAME = "project";
 
@@ -71,27 +78,30 @@ public class MavenRepositoryPlugin implements Plugin<Project> {
 		project.getTasks()
 			.matching((task) -> PUBLISH_TASK_NAME.equals(task.getName()))
 			.all((task) -> setUpProjectRepository(project, task, location));
+		project.getTasks()
+			.matching((task) -> PLUGIN_PUBLISH_TASK_NAME.equals(task.getName()))
+			.all((task) -> setUpProjectRepository(project, task, location));
 	}
 
 	private void setUpProjectRepository(Project project, Task publishTask, File location) {
 		// Emptied first, so a rename or a removal leaves no stale artifact to resolve
-		// against.
 		publishTask.doFirst(new CleanAction(location));
 		Configuration repository = project.getConfigurations().create(MAVEN_REPOSITORY_CONFIGURATION_NAME);
 		project.getArtifacts().add(repository.getName(), location, (artifact) -> artifact.builtBy(publishTask));
 		DependencySet contents = repository.getDependencies();
 		project.getPlugins()
-			.withType(JavaPlugin.class,
-					(_) -> addProjectDependencies(project, JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAME, contents));
+			.withType(JavaPlugin.class, (_) -> addMavenRepositoryProjectDependencies(project,
+					JavaPlugin.IMPLEMENTATION_CONFIGURATION_NAME, contents));
 		project.getPlugins()
 			.withType(JavaLibraryPlugin.class,
-					(_) -> addProjectDependencies(project, JavaPlugin.API_CONFIGURATION_NAME, contents));
+					(_) -> addMavenRepositoryProjectDependencies(project, JavaPlugin.API_CONFIGURATION_NAME, contents));
 		project.getPlugins()
-			.withType(JavaPlatformPlugin.class,
-					(_) -> addProjectDependencies(project, JavaPlatformPlugin.API_CONFIGURATION_NAME, contents));
+			.withType(JavaPlatformPlugin.class, (_) -> addMavenRepositoryProjectDependencies(project,
+					JavaPlatformPlugin.API_CONFIGURATION_NAME, contents));
 	}
 
-	private void addProjectDependencies(Project project, String configurationName, DependencySet contents) {
+	private void addMavenRepositoryProjectDependencies(Project project, String configurationName,
+			DependencySet contents) {
 		project.getConfigurations()
 			.getByName(configurationName)
 			.getDependencies()
@@ -114,23 +124,7 @@ public class MavenRepositoryPlugin implements Plugin<Project> {
 		 */
 		@Override
 		public void execute(Task task) {
-			delete(this.location);
-		}
-
-		private void delete(File file) {
-			Path root = file.toPath();
-			if (!Files.exists(root)) {
-				return;
-			}
-			try (Stream<Path> paths = Files.walk(root)) {
-				// Deepest first: a directory cannot go until it is empty.
-				for (Path path : paths.sorted(Comparator.reverseOrder()).toList()) {
-					Files.delete(path);
-				}
-			}
-			catch (IOException ex) {
-				throw new UncheckedIOException("Failed to clear " + file, ex);
-			}
+			Directories.deleteRecursively(this.location.toPath());
 		}
 	}
 

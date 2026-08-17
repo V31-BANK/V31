@@ -31,6 +31,7 @@ import org.gradle.api.artifacts.ProjectDependency;
 import org.gradle.api.artifacts.PublishArtifact;
 import org.gradle.api.artifacts.repositories.MavenArtifactRepository;
 import org.gradle.api.publish.PublishingExtension;
+import org.gradle.api.publish.maven.MavenPublication;
 import org.gradle.api.publish.maven.plugins.MavenPublishPlugin;
 import org.gradle.testfixtures.ProjectBuilder;
 import org.junit.jupiter.api.Test;
@@ -114,8 +115,7 @@ class MavenRepositoryPluginTests {
 			.resolve("org/v31bank/V31-core/0.1.0/V31-core-0.1.0.jar");
 		Files.createDirectories(stale.getParent());
 		Files.writeString(stale, "stale");
-		Task publish = project.getTasks().getByName(PUBLISH_TASK_NAME);
-		runFirstActionOf(publish);
+		runFirstActionOf(project.getTasks().getByName(PUBLISH_TASK_NAME));
 		assertThat(stale).doesNotExist();
 		assertThat(buildDirectory(project, "maven-repository")).doesNotExist();
 	}
@@ -125,6 +125,18 @@ class MavenRepositoryPluginTests {
 		Project project = deployedProject();
 		assertThat(buildDirectory(project, "maven-repository")).doesNotExist();
 		runFirstActionOf(project.getTasks().getByName(PUBLISH_TASK_NAME));
+	}
+
+	@Test
+	void servesAPublicationTheProjectNeverNamed() {
+		Project project = project();
+		project.getExtensions()
+			.getByType(PublishingExtension.class)
+			.getPublications()
+			.create("pluginMaven", MavenPublication.class);
+		assertThat(project.getTasks().findByName("publishPluginMavenPublicationToProjectRepository")).isNotNull();
+		assertThat(project.getConfigurations().findByName(MavenRepositoryPlugin.MAVEN_REPOSITORY_CONFIGURATION_NAME))
+			.isNotNull();
 	}
 
 	@SuppressWarnings("unchecked")
