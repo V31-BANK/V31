@@ -102,6 +102,8 @@ public class MavenRepositoryPlugin implements Plugin<Project> {
 
 	private void addMavenRepositoryProjectDependencies(Project project, String configurationName,
 			DependencySet contents) {
+		// Each is asked for its repository rather than its jar, so resolving this one
+		// gathers the whole chain a consumer has to resolve against.
 		project.getConfigurations()
 			.getByName(configurationName)
 			.getDependencies()
