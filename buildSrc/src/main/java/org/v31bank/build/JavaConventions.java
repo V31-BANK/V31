@@ -106,7 +106,7 @@ class JavaConventions {
 	private void excludeGeneratedSources(SourceTask task) {
 		task.exclude((candidate) -> {
 			String path = candidate.getFile().getPath().replace(File.separatorChar, '/');
-			return path.contains("/apis/");
+			return path.contains("/generated/sources/") || path.contains("/generated-source/");
 		});
 	}
 

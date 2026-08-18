@@ -4,6 +4,7 @@ generated/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
+!**/src/main/generated/
 .kotlin
 .claude
 CLAUDE.md
@@ -14,6 +15,7 @@ CLAUDE.md
 !.idea/copyright/
 !.idea/codeStyles/
 !.idea/inspectionProfiles/
+!.idea/sonarlint.xml
 !readme/
 *.iws
 *.iml

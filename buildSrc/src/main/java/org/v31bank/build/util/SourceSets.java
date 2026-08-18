@@ -23,6 +23,7 @@ import java.util.function.Predicate;
 
 import org.gradle.api.GradleException;
 import org.gradle.api.Project;
+import org.gradle.api.file.Directory;
 import org.gradle.api.file.SourceDirectorySet;
 import org.gradle.api.plugins.JavaPluginExtension;
 import org.gradle.api.tasks.SourceSet;
@@ -48,6 +49,8 @@ public final class SourceSets {
 
 	private final Project project;
 
+	public static final String GENERATED_SOURCES = "src/main/generated/sources";
+
 	private SourceSets(Project project) {
 		this.project = project;
 	}
@@ -67,6 +70,10 @@ public final class SourceSets {
 
 	public Sources main() {
 		return named(SourceSet.MAIN_SOURCE_SET_NAME);
+	}
+
+	public Directory generatedSources() {
+		return this.project.getLayout().getProjectDirectory().dir(GENERATED_SOURCES);
 	}
 
 	public Sources named(String name) {

@@ -38,12 +38,16 @@ import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.TaskContainer;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
+import org.gradle.plugins.ide.idea.IdeaPlugin;
+import org.gradle.plugins.ide.idea.model.IdeaModel;
+import org.gradle.plugins.ide.idea.model.IdeaModule;
 
 import org.v31bank.build.proto.BufTask;
 import org.v31bank.build.proto.DownloadProtoTools;
 import org.v31bank.build.proto.GenerateProtoSources;
 import org.v31bank.build.proto.LintProto;
 import org.v31bank.build.util.SourceSets;
+import org.v31bank.build.util.SourceSets.Directories;
 
 /**
  * Generates a project's Java sources from the {@code .proto} it is named after.
@@ -82,9 +86,14 @@ public class ProtobufPlugin implements Plugin<Project> {
 
 	private static final String BUF_VERSION = "bufVersion";
 
-	private static final String PROTOC_VERSION = "protocVersion";
+	/**
+	 * One version per generator-and-runtime pair, because they are one decision: the
+	 * platform pins the library from the same property this fetches the generator with,
+	 * so the two cannot drift.
+	 */
+	private static final String PROTOBUF_VERSION = "protobufVersion";
 
-	private static final String GRPC_JAVA_GENERATOR_VERSION = "grpcJavaGeneratorVersion";
+	private static final String GRPC_VERSION = "grpcVersion";
 
 	/**
 	 * Where buf and the generators it runs are installed, and the path
@@ -127,7 +136,17 @@ public class ProtobufPlugin implements Plugin<Project> {
 			.map((file) -> new Api(root, file.getName())) : Stream.empty();
 	}
 
+	private void declareAsGeneratedSources(Project project) {
+		Directories java = SourceSets.of(project).main().java();
+		java.unwrap().srcDir(SourceSets.of(project).generatedSources());
+		project.getPluginManager().apply(IdeaPlugin.class);
+		IdeaModule module = project.getExtensions().getByType(IdeaModel.class).getModule();
+		module.getGeneratedSourceDirs().add(
+				java.directory(file -> file.toPath().endsWith(SourceSets.GENERATED_SOURCES)));
+	}
+
 	private void generate(Project project, Api api) {
+		declareAsGeneratedSources(project);
 		TaskProvider<DownloadProtoTools> tools = tools(project.getRootProject());
 		Provider<RegularFile> buf = tools.flatMap(DownloadProtoTools::getInstalledBuf);
 		TaskProvider<GenerateProtoSources> generate = bufTask(project, GENERATE_TASK_NAME, GenerateProtoSources.class,
@@ -135,7 +154,7 @@ public class ProtobufPlugin implements Plugin<Project> {
 					task.setDescription("Generates this project's sources from the " + api.name() + " proto.");
 					task.getProtoc().set(tools.flatMap(DownloadProtoTools::getInstalledProtoc));
 					task.getGrpcJavaGenerator().set(tools.flatMap(DownloadProtoTools::getInstalledGrpcJavaGenerator));
-					task.getDestination().set(SourceSets.of(project).main().java().directory());
+					task.getDestination().set(SourceSets.of(project).generatedSources());
 					task.getManifest().set(project.getLayout().getBuildDirectory().file("proto/generated-sources.txt"));
 				});
 		project.getTasks().named(JavaPlugin.COMPILE_JAVA_TASK_NAME).configure((compile) -> compile.dependsOn(generate));
@@ -193,9 +212,9 @@ public class ProtobufPlugin implements Plugin<Project> {
 		return tasks.register(TOOLS_TASK_NAME, DownloadProtoTools.class, (task) -> {
 			task.setDescription("Fetches buf and the generators it runs.");
 			task.getBuf().set(fromMaven(root, "build.buf:buf", BUF_VERSION));
-			task.getProtoc().set(fromMaven(root, "com.google.protobuf:protoc", PROTOC_VERSION));
+			task.getProtoc().set(fromMaven(root, "com.google.protobuf:protoc", PROTOBUF_VERSION));
 			task.getGrpcJavaGenerator()
-				.set(fromMaven(root, "io.grpc:protoc-gen-grpc-java", GRPC_JAVA_GENERATOR_VERSION));
+				.set(fromMaven(root, "io.grpc:protoc-gen-grpc-java", GRPC_VERSION));
 			task.getDestination().set(root.getLayout().getBuildDirectory().dir(TOOLS));
 		});
 	}

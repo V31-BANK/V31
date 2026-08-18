@@ -26,7 +26,9 @@ javaPlatform {
 }
 
 val springBootVersion = providers.gradleProperty("springBootVersion").get()
-val protocVersion = providers.gradleProperty("protocVersion").get()
+val protobufVersion = providers.gradleProperty("protobufVersion").get()
+val grpcVersion = providers.gradleProperty("grpcVersion").get()
+
 // The one thing another build imports. It settles two sets of versions at once: V31's
 // own artifacts, and the third-party libraries they were built and tested against. A
 // consumer that imports it names an artifact without a version and gets a combination
@@ -37,14 +39,9 @@ val protocVersion = providers.gradleProperty("protocVersion").get()
 dependencies {
     api(platform("org.springframework.boot:spring-boot-dependencies:$springBootVersion"))
 
-    // Spring Boot 4.1.0 pins gRPC at 1.80.0, but the Spring gRPC 1.1.0 it ships
-    // with is built against 1.81.0 and pulls that in for the artifacts it depends
-    // on. Anything else — grpc-inprocess, grpc-stub — would stay on 1.80.0 and
-    // fail at runtime against the newer core, since the internal transport
-    // interfaces changed between the two. Importing the gRPC BOM settles every
-    // artifact on one version.
-    api(platform("io.grpc:grpc-bom:1.81.0"))
-    api(platform("com.google.protobuf:protobuf-bom:$protocVersion"))
+    // Both track Spring Boot 4.1.0: protobuf is exactly its pin, gRPC one minor ahead of it.
+    api(platform("io.grpc:grpc-bom:$grpcVersion"))
+    api(platform("com.google.protobuf:protobuf-bom:$protobufVersion"))
 
     constraints {
         api("com.google.guava:guava:33.6.0-jre")
