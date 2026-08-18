@@ -77,6 +77,10 @@ gradlePlugin {
 			id = "org.v31bank.maven-repository"
 			implementationClass = "org.v31bank.build.MavenRepositoryPlugin"
 		}
+		optionalDependenciesPlugin {
+			id = "org.v31bank.optional-dependencies"
+			implementationClass = "org.v31bank.build.optional.OptionalDependenciesPlugin"
+		}
 	}
 }
 
