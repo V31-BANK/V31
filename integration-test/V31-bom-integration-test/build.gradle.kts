@@ -66,11 +66,19 @@ val syncTestRepository = tasks.register<Sync>("syncTestRepository") {
     into(layout.buildDirectory.dir("test-repository"))
 }
 
+// The committed output of one generator, so that the version stamped into it can be
+// compared with the runtime a consumer resolves. Any API project would do; this is the
+// one that has a .proto.
+val generatedSources = rootProject.layout.projectDirectory.dir("apis/V31-ledger-api/src/main/generated")
+
 tasks.named<Test>("intTest") {
-	println(layout.buildDirectory.dir("test-repository").get().asFile.absolutePath)
     inputs.files(syncTestRepository)
         .withPathSensitivity(PathSensitivity.RELATIVE)
         .withPropertyName("testRepository")
+    inputs.dir(generatedSources)
+        .withPathSensitivity(PathSensitivity.RELATIVE)
+        .withPropertyName("generatedSources")
     systemProperty("testRepository", layout.buildDirectory.dir("test-repository").get().asFile.absolutePath)
     systemProperty("v31Version", project.version.toString())
+    systemProperty("generatedSources", generatedSources.asFile.absolutePath)
 }
