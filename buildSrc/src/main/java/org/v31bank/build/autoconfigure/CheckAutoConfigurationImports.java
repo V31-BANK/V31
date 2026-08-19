@@ -27,13 +27,8 @@ import org.gradle.api.tasks.TaskAction;
 import org.gradle.api.tasks.VerificationException;
 
 /**
- * Fails when the imports file names something it should not.
- * <p>
- * Spring Boot reads this file and nothing else to find a module's auto-configurations. A
- * name that no longer resolves, or one that resolves to a class somebody removed the
- * annotation from, is not an error at build time and not an error at startup either: the
- * configuration is quietly skipped, and the beans it would have contributed are missing
- * wherever they were expected.
+ * Fails when the imports file names a class that is missing or unannotated, or lists its
+ * entries out of order.
  *
  * @author Xander Wang
  * @since 0.2.0
@@ -42,23 +37,20 @@ public abstract class CheckAutoConfigurationImports extends AutoConfigurationImp
 
 	@TaskAction
 	void check() {
-		// No file is not this task's business: whether one was needed is a question about
-		// the classes, and CheckAutoConfigurationClasses is the one that asks it.
-		importsFile().ifPresent(this::check);
-	}
-
-	private void check(File importsFile) {
+		File importsFile = getSource().getSingleFile();
 		List<String> imports = loadImports();
 		List<String> problems = new ArrayList<>();
 		imports.forEach((registered) -> checkRegistered(registered).ifPresent(problems::add));
 		checkSorted(imports).ifPresent(problems::add);
+		File report = writeReport(report(importsFile, problems));
 		if (!problems.isEmpty()) {
-			throw new VerificationException(report(importsFile, problems));
+			throw new VerificationException(
+					"%s check failed. See '%s' for details".formatted(AutoConfigurationImports.PATH, report));
 		}
 	}
 
 	private Optional<String> checkRegistered(String className) {
-		Optional<Path> classFile = findClassFile(className);
+		Optional<Path> classFile = AutoConfigurationClass.classFileOf(className, getClasspath().getFiles());
 		if (classFile.isEmpty()) {
 			return Optional.of("'%s' was not found".formatted(className));
 		}
@@ -69,10 +61,10 @@ public abstract class CheckAutoConfigurationImports extends AutoConfigurationImp
 	}
 
 	/**
-	 * The order of the file decides nothing — {@code before} and {@code after} do — so
-	 * holding it to alphabetical order costs a module nothing and makes a diff of it mean
-	 * something.
-	 * @param imports the registered class names, in the order the file lists them
+	 * File order decides nothing — before and after do — so alphabetical costs nothing
+	 * and makes a diff mean something. The expected content is written out rather than
+	 * described.
+	 * @param imports the registered class names, in file order
 	 * @return the problem, if the file is out of order
 	 */
 	private Optional<String> checkSorted(List<String> imports) {
@@ -80,16 +72,19 @@ public abstract class CheckAutoConfigurationImports extends AutoConfigurationImp
 		if (sorted.equals(imports)) {
 			return Optional.empty();
 		}
-		return Optional.of("entries should be sorted alphabetically:%n%s".formatted(indented(sorted)));
+		File sortedFile = getOutputDirectory().file("sorted-" + AutoConfigurationImports.FILE_NAME).get().getAsFile();
+		write(sortedFile,
+				sorted.stream().collect(Collectors.joining(System.lineSeparator(), "", System.lineSeparator())));
+		return Optional
+			.of("entries should be sorted alphabetically (expected content written to %s)".formatted(sortedFile));
 	}
 
 	private String report(File importsFile, List<String> problems) {
-		return "Found problems in %s:%n%s".formatted(importsFile,
-				problems.stream().map((problem) -> "    - " + problem).collect(Collectors.joining("%n".formatted())));
-	}
-
-	private String indented(List<String> lines) {
-		return lines.stream().map((line) -> "        " + line).collect(Collectors.joining("%n".formatted()));
+		if (problems.isEmpty()) {
+			return "";
+		}
+		return "Found problems in '%s':%n%s%n".formatted(importsFile,
+				problems.stream().map((problem) -> "  - " + problem).collect(Collectors.joining("%n".formatted())));
 	}
 
 }

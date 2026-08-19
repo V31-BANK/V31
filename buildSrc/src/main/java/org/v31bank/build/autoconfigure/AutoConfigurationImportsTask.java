@@ -20,26 +20,23 @@ import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.List;
-import java.util.Optional;
 
 import org.gradle.api.DefaultTask;
 import org.gradle.api.file.ConfigurableFileCollection;
+import org.gradle.api.file.DirectoryProperty;
 import org.gradle.api.file.FileTree;
 import org.gradle.api.tasks.Classpath;
 import org.gradle.api.tasks.InputFiles;
 import org.gradle.api.tasks.Internal;
+import org.gradle.api.tasks.OutputDirectory;
 import org.gradle.api.tasks.PathSensitive;
 import org.gradle.api.tasks.PathSensitivity;
+import org.gradle.api.tasks.SkipWhenEmpty;
+import org.gradle.language.base.plugins.LifecycleBasePlugin;
 
 /**
- * A task that reads the auto-configurations a module registers and the classes it
- * registers them from.
- * <p>
- * Both halves are read here because neither is meaningful alone: the file names classes
- * and the classes claim to be registered, so anything worth saying about one is said by
- * looking at the other.
+ * A check on a module's auto-configuration imports file and the classes it names.
  *
  * @author Xander Wang
  * @since 0.2.0
@@ -47,87 +44,62 @@ import org.gradle.api.tasks.PathSensitivity;
 public abstract class AutoConfigurationImportsTask extends DefaultTask {
 
 	/**
-	 * The file Spring Boot reads a module's auto-configurations from.
+	 * The name of the report every check writes, whether or not it found anything.
 	 */
-	public static final String IMPORTS_FILE = "META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports";
+	public static final String FAILURE_REPORT = "failure-report.txt";
 
-	private static final String COMMENT_START = "#";
+	protected AutoConfigurationImportsTask() {
+		setGroup(LifecycleBasePlugin.VERIFICATION_GROUP);
+		getOutputDirectory().convention(getProject().getLayout().getBuildDirectory().dir(getName()));
+	}
 
 	/**
-	 * Where to look for the imports file. Not an input in its own right: one file out of
-	 * it is what this task reads, and {@link #getSource()} is what declares that.
+	 * Not an input itself: one file out of it is, and getSource() is what declares that.
 	 * @return the resources to look in
 	 */
 	@Internal
 	public abstract ConfigurableFileCollection getResources();
 
 	/**
-	 * The imports file, of which a module has one or none. Absent is a state to be
-	 * checked and not a reason to skip: a module that registers nothing while holding a
-	 * class that expects to be registered is the mistake worth catching.
+	 * Absent means the module registers nothing, so the check is skipped rather than
+	 * failed.
 	 * @return the imports file
 	 */
 	@InputFiles
+	@SkipWhenEmpty
 	@PathSensitive(PathSensitivity.RELATIVE)
 	public FileTree getSource() {
-		return getResources().getAsFileTree().matching((filter) -> filter.include(IMPORTS_FILE));
+		return getResources().getAsFileTree().matching((filter) -> filter.include(AutoConfigurationImports.PATH));
 	}
 
-	/**
-	 * Where the classes named by the imports file are compiled to.
-	 * @return the classes to check against
-	 */
 	@Classpath
 	public abstract ConfigurableFileCollection getClasspath();
 
 	/**
-	 * Where one of the registered classes was compiled to.
-	 * @param className binary name of the class to look for
-	 * @return its class file, if the classpath has it
+	 * Also what lets a check go up to date: a task declaring no output is always re-run.
+	 * @return the directory to report into
 	 */
-	protected Optional<Path> findClassFile(String className) {
-		String classFilePath = className.replace('.', '/') + ".class";
-		return getClasspath().getFiles()
-			.stream()
-			.map((root) -> root.toPath().resolve(classFilePath))
-			.filter(Files::isRegularFile)
-			.findFirst();
-	}
+	@OutputDirectory
+	public abstract DirectoryProperty getOutputDirectory();
 
-	/**
-	 * The file itself, for a task that has something to say about it.
-	 * @return the imports file, if the module has one
-	 */
-	protected Optional<File> importsFile() {
-		return getSource().getFiles().stream().findFirst();
-	}
-
-	/**
-	 * The classes the module registers, in the order the file lists them and without the
-	 * comments and blank lines Spring Boot's own reader passes over. A module with no
-	 * file registers nothing, which is a thing to be said rather than an error.
-	 * @return the registered class names
-	 */
 	protected List<String> loadImports() {
-		return importsFile().map(AutoConfigurationImportsTask::readLines).orElseGet(List::of);
+		return AutoConfigurationImports.read(getSource().getSingleFile());
 	}
 
-	private static List<String> readLines(File importsFile) {
+	protected File writeReport(String report) {
+		File reportFile = getOutputDirectory().file(FAILURE_REPORT).get().getAsFile();
+		write(reportFile, report);
+		return reportFile;
+	}
+
+	protected void write(File file, String content) {
 		try {
-			return Files.readAllLines(importsFile.toPath())
-				.stream()
-				.map(AutoConfigurationImportsTask::withoutComment)
-				.filter((line) -> !line.isEmpty())
-				.toList();
+			Files.createDirectories(file.getParentFile().toPath());
+			Files.writeString(file.toPath(), content);
 		}
 		catch (IOException ex) {
-			throw new UncheckedIOException("Failed to read " + importsFile, ex);
+			throw new UncheckedIOException("Failed to write " + file, ex);
 		}
-	}
-
-	private static String withoutComment(String line) {
-		int comment = line.indexOf(COMMENT_START);
-		return ((comment == -1) ? line : line.substring(0, comment)).trim();
 	}
 
 }

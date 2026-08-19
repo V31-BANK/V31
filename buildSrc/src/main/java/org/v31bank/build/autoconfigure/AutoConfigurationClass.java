@@ -16,7 +16,9 @@
 
 package org.v31bank.build.autoconfigure;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.UncheckedIOException;
 import java.lang.classfile.Annotation;
 import java.lang.classfile.AnnotationElement;
@@ -27,6 +29,7 @@ import java.lang.classfile.ClassModel;
 import java.lang.classfile.attribute.RuntimeVisibleAnnotationsAttribute;
 import java.lang.constant.ClassDesc;
 import java.lang.reflect.AccessFlag;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -34,33 +37,69 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * One {@code @AutoConfiguration} class, read from the class file the compiler produced.
- * <p>
- * Reading the bytecode rather than the source is what keeps the checks in this package
- * honest: they see the annotation exactly as Spring Boot will see it at runtime, and they
- * see it for every class in the source set rather than for the ones somebody remembered
- * to list. The JDK reads class files itself, so this costs {@code buildSrc} no
- * dependency.
+ * An {@code @AutoConfiguration} class, read from its class file.
  *
  * @param name binary name of the class
  * @param references the classes it orders itself against
  * @author Xander Wang
  * @since 0.2.0
  */
-record AutoConfigurationClass(String name, List<Reference> references) {
+public record AutoConfigurationClass(String name, List<Reference> references) {
 
 	private static final ClassDesc AUTO_CONFIGURATION = ClassDesc
 		.of("org.springframework.boot.autoconfigure.AutoConfiguration");
+
+	private static final String CLASS_FILE_SUFFIX = ".class";
 
 	/**
 	 * Read a class file.
 	 * @param classFile the file to read
 	 * @return the class, or empty when it carries no {@code @AutoConfiguration}
 	 */
-	static Optional<AutoConfigurationClass> of(Path classFile) {
-		ClassModel classModel = parse(classFile);
-		// @AutoConfiguration is retained at runtime, so the visible attribute is the only
-		// one that can be holding it.
+	public static Optional<AutoConfigurationClass> of(Path classFile) {
+		return of(parse(classFile));
+	}
+
+	/**
+	 * Read a class from wherever it is held, which for a class inside a jar is not a
+	 * file.
+	 * @param input the bytecode to read
+	 * @return the class, or empty when it carries no {@code @AutoConfiguration}
+	 */
+	public static Optional<AutoConfigurationClass> of(InputStream input) {
+		return of(parse(input));
+	}
+
+	/**
+	 * Whether anything outside the class's own package can name it, which is what decides
+	 * whether it is worth telling the rest of the build about.
+	 * @param classFile the file to read
+	 * @return whether the class is public
+	 */
+	public static boolean isPublic(Path classFile) {
+		return parse(classFile).flags().has(AccessFlag.PUBLIC);
+	}
+
+	/**
+	 * Where a class of the given name was compiled to.
+	 * @param className binary name of the class to look for
+	 * @param classpath the roots to look under
+	 * @return its class file, if one of the roots has it
+	 */
+	public static Optional<Path> classFileOf(String className, Iterable<File> classpath) {
+		String relativePath = className.replace('.', '/') + CLASS_FILE_SUFFIX;
+		for (File root : classpath) {
+			Path classFile = root.toPath().resolve(relativePath);
+			if (Files.isRegularFile(classFile)) {
+				return Optional.of(classFile);
+			}
+		}
+		return Optional.empty();
+	}
+
+	private static Optional<AutoConfigurationClass> of(ClassModel classModel) {
+		// @AutoConfiguration is retained at runtime, so only the visible attribute can
+		// hold it.
 		return classModel.findAttribute(Attributes.runtimeVisibleAnnotations())
 			.map(RuntimeVisibleAnnotationsAttribute::annotations)
 			.orElse(List.of())
@@ -71,22 +110,21 @@ record AutoConfigurationClass(String name, List<Reference> references) {
 					referencesIn(annotation)));
 	}
 
-	/**
-	 * Whether anything outside the class's own package can name it, which is what decides
-	 * whether it is worth telling the rest of the build about.
-	 * @param classFile the file to read
-	 * @return whether the class is public
-	 */
-	static boolean isPublic(Path classFile) {
-		return parse(classFile).flags().has(AccessFlag.PUBLIC);
-	}
-
 	private static ClassModel parse(Path classFile) {
 		try {
 			return ClassFile.of().parse(classFile);
 		}
 		catch (IOException ex) {
 			throw new UncheckedIOException("Failed to read " + classFile, ex);
+		}
+	}
+
+	private static ClassModel parse(InputStream input) {
+		try {
+			return ClassFile.of().parse(input.readAllBytes());
+		}
+		catch (IOException ex) {
+			throw new UncheckedIOException("Failed to read a class", ex);
 		}
 	}
 
@@ -100,12 +138,6 @@ record AutoConfigurationClass(String name, List<Reference> references) {
 		return List.copyOf(references);
 	}
 
-	/**
-	 * The classes one attribute points at. Both forms hold an array; only what the array
-	 * holds differs, a class in one and that class's name in the other.
-	 * @param value the value of the attribute
-	 * @return the binary names it points at
-	 */
 	private static List<String> targetsOf(AnnotationValue value) {
 		if (!(value instanceof AnnotationValue.OfArray array)) {
 			return List.of();
@@ -126,25 +158,10 @@ record AutoConfigurationClass(String name, List<Reference> references) {
 		return packageName.isEmpty() ? type.displayName() : packageName + "." + type.displayName();
 	}
 
-	/**
-	 * One class an auto-configuration orders itself against, and which attribute said so.
-	 *
-	 * @param attribute the attribute it was declared in
-	 * @param className binary name of the class pointed at
-	 */
-	record Reference(Attribute attribute, String className) {
+	public record Reference(Attribute attribute, String className) {
 	}
 
-	/**
-	 * The four attributes {@code @AutoConfiguration} offers for ordering, which are two
-	 * attributes in two forms: one takes the class, the other its name.
-	 * <p>
-	 * Which form is correct is not a matter of taste. Naming a class loads it when the
-	 * annotation is read, so a class from a dependency that may be absent has to be
-	 * referred to by name; a class that is always there referred to by name is a string
-	 * nothing checks.
-	 */
-	enum Attribute {
+	public enum Attribute {
 
 		/**
 		 * {@code before}, holding classes.
@@ -180,11 +197,6 @@ record AutoConfigurationClass(String name, List<Reference> references) {
 			return this == BEFORE_NAME || this == AFTER_NAME;
 		}
 
-		/**
-		 * The same attribute in the other form, which is what a wrongly declared
-		 * reference should have used.
-		 * @return the counterpart attribute
-		 */
 		Attribute counterpart() {
 			return switch (this) {
 				case BEFORE -> BEFORE_NAME;

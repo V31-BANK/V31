@@ -47,9 +47,13 @@ import org.gradle.api.tasks.SourceSetContainer;
  */
 public final class SourceSets {
 
-	private final Project project;
-
+	/**
+	 * The source root a generator owns, kept apart from handwritten code so that the
+	 * checks and the formatter can skip it by path.
+	 */
 	public static final String GENERATED_SOURCES = "src/main/generated/sources";
+
+	private final Project project;
 
 	private SourceSets(Project project) {
 		this.project = project;

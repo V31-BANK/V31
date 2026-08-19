@@ -16,79 +16,94 @@
 
 package org.v31bank.build.autoconfigure;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
+import java.util.LinkedHashSet;
 import java.util.Properties;
+import java.util.Set;
 
-import org.gradle.api.GradleException;
+import org.gradle.api.DefaultTask;
+import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Property;
+import org.gradle.api.tasks.Classpath;
 import org.gradle.api.tasks.Input;
+import org.gradle.api.tasks.InputFile;
 import org.gradle.api.tasks.OutputFile;
+import org.gradle.api.tasks.PathSensitive;
+import org.gradle.api.tasks.PathSensitivity;
+import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.TaskAction;
 
 import org.v31bank.build.util.PropertiesFiles;
 
 /**
- * Writes a properties file naming a module and every auto-configuration it offers.
- * <p>
- * Nothing in the module reads this. It is published through a configuration of its own so
- * that something else in this build can collect the same fact from every module at once —
- * a list of what V31 auto-configures, which no single module is in a position to state.
- * What a consumer gets at runtime is a different file with a similar name,
- * {@code META-INF/spring-autoconfigure-metadata.properties}, written into the jar by
- * Spring Boot's auto-configuration processor.
- * <p>
- * Only public classes are listed, because a package-private auto-configuration is Spring
- * Boot's business and nothing outside the module can name it.
+ * Writes a properties file naming a module and the auto-configurations it offers, for
+ * something else in this build to collect from every module at once.
  *
  * @author Xander Wang
  * @since 0.2.0
  */
-public abstract class AutoConfigurationMetadata extends AutoConfigurationImportsTask {
+public abstract class AutoConfigurationMetadata extends DefaultTask {
 
 	public AutoConfigurationMetadata() {
 		getModuleName().convention(getProject().provider(getProject()::getName));
 	}
 
-	/**
-	 * What the module is called, which is the only way a collected file says where it
-	 * came from.
-	 * @return the module name
-	 */
 	@Input
 	public abstract Property<String> getModuleName();
 
+	@InputFile
+	@PathSensitive(PathSensitivity.RELATIVE)
+	public abstract RegularFileProperty getAutoConfigurationImports();
+
+	@Classpath
+	public abstract ConfigurableFileCollection getClassesDirectories();
+
 	@OutputFile
-	public abstract RegularFileProperty getDestination();
+	public abstract RegularFileProperty getOutputFile();
+
+	/**
+	 * Both inputs come from one source set, and the task waits for it to be built.
+	 * @param sourceSet the source set to describe
+	 */
+	public void setSourceSet(SourceSet sourceSet) {
+		getAutoConfigurationImports()
+			.set(new File(sourceSet.getOutput().getResourcesDir(), AutoConfigurationImports.PATH));
+		getClassesDirectories().from(sourceSet.getOutput().getClassesDirs());
+		dependsOn(sourceSet.getOutput());
+	}
 
 	@TaskAction
-	void generateMetadata() throws IOException {
-		Properties properties = new Properties();
-		properties.setProperty("module", getModuleName().get());
-		properties.setProperty("autoConfigurationClassNames", String.join(",", publicClassNames()));
-		Path destination = getDestination().getAsFile().get().toPath();
-		Files.createDirectories(destination.getParent());
-		Files.write(destination, PropertiesFiles.render(properties));
+	void documentAutoConfiguration() throws IOException {
+		Properties metadata = new Properties();
+		metadata.setProperty("module", getModuleName().get());
+		metadata.setProperty("autoConfigurationClassNames", String.join(",", publicClassNames()));
+		Path outputFile = getOutputFile().getAsFile().get().toPath();
+		Files.createDirectories(outputFile.getParent());
+		Files.write(outputFile, PropertiesFiles.render(metadata));
 	}
 
 	/**
-	 * The registered classes that something else could name, in the order the module
-	 * registered them.
+	 * Only public classes: nothing outside the module can name a package-private one.
 	 * @return the public class names
 	 */
-	private List<String> publicClassNames() {
-		return loadImports().stream()
-			.filter((className) -> AutoConfigurationClass.isPublic(classFileOf(className)))
-			.toList();
+	private Set<String> publicClassNames() {
+		Set<String> publicClassNames = new LinkedHashSet<>();
+		for (String className : AutoConfigurationImports.read(getAutoConfigurationImports().getAsFile().get())) {
+			if (AutoConfigurationClass.isPublic(classFileOf(className))) {
+				publicClassNames.add(className);
+			}
+		}
+		return publicClassNames;
 	}
 
 	private Path classFileOf(String className) {
-		return findClassFile(className).orElseThrow(() -> new GradleException(
-				"'%s' is registered in %s but was not compiled. Run %s to be told which of the two is wrong."
-					.formatted(className, IMPORTS_FILE, AutoConfigurationPlugin.CHECK_IMPORTS_TASK_NAME)));
+		return AutoConfigurationClass.classFileOf(className, getClassesDirectories().getFiles())
+			.orElseThrow(
+					() -> new IllegalStateException("Auto-configuration class '%s' not found.".formatted(className)));
 	}
 
 }

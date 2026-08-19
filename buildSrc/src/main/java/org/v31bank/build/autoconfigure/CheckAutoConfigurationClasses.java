@@ -45,18 +45,8 @@ import org.v31bank.build.autoconfigure.AutoConfigurationClass.Attribute;
 import org.v31bank.build.autoconfigure.AutoConfigurationClass.Reference;
 
 /**
- * Fails when an {@code @AutoConfiguration} class is not what the module says it is.
- * <p>
- * Where {@link CheckAutoConfigurationImports} starts from the file and asks whether the
- * classes are there, this starts from the classes and asks whether the file knows about
- * them: a new auto-configuration that nobody registered does nothing at all, and says
- * nothing about it.
- * <p>
- * It also settles the one question a compiler cannot. {@code before} and {@code after}
- * name a class, which loads it as the annotation is read, so pointing them at a
- * dependency a consumer may not have brings the whole context down; {@code beforeName}
- * and {@code afterName} take a string, which does not, but a string pointing at a class
- * that is always there is a name nothing will ever tell you has gone stale.
+ * Fails when an {@code @AutoConfiguration} class goes unregistered, is misnamed, or
+ * orders itself against another class in the wrong form.
  *
  * @author Xander Wang
  * @since 0.2.0
@@ -65,27 +55,16 @@ public abstract class CheckAutoConfigurationClasses extends AutoConfigurationImp
 
 	private static final String CLASS_NAME_SUFFIX = "AutoConfiguration";
 
+	private static final String TEST_CLASS_NAME_SUFFIX = "TestAutoConfiguration";
+
 	private static final String CLASS_FILE_SUFFIX = ".class";
 
-	/**
-	 * What the module compiles and runs against no matter what a consumer asks for.
-	 * @return the required dependencies
-	 */
 	@Classpath
 	public abstract ConfigurableFileCollection getRequiredDependencies();
 
-	/**
-	 * What the module compiles against but a consumer may never resolve.
-	 * @return the optional dependencies
-	 */
 	@Classpath
 	public abstract ConfigurableFileCollection getOptionalDependencies();
 
-	/**
-	 * Classes that carry the annotation and are deliberately left out of the imports
-	 * file, which is otherwise reported as a class nobody registered.
-	 * @return the class names to leave unregistered
-	 */
 	@Input
 	public abstract SetProperty<String> getOmittedFromImports();
 
@@ -95,8 +74,10 @@ public abstract class CheckAutoConfigurationClasses extends AutoConfigurationImp
 		Problems problems = new Problems();
 		checkRegistration(autoConfigurations, loadImports(), problems);
 		checkOrdering(autoConfigurations, problems);
+		File report = writeReport(problems.report());
 		if (!problems.isEmpty()) {
-			throw new VerificationException(problems.report());
+			throw new VerificationException(
+					"Auto-configuration class check failed. See '%s' for details".formatted(report));
 		}
 	}
 
@@ -108,19 +89,20 @@ public abstract class CheckAutoConfigurationClasses extends AutoConfigurationImp
 			if (!name.endsWith(CLASS_NAME_SUFFIX)) {
 				problems.add(name, "name should end with %s".formatted(CLASS_NAME_SUFFIX));
 			}
+			boolean unregisteredOnPurpose = omitted.contains(name) || name.endsWith(TEST_CLASS_NAME_SUFFIX);
 			boolean registered = imports.contains(name);
-			if (omitted.contains(name) && registered) {
-				problems.add(name, "is registered in %s but declared as omitted from it".formatted(IMPORTS_FILE));
+			if (unregisteredOnPurpose && registered) {
+				problems.add(name, "should not be registered in %s".formatted(AutoConfigurationImports.PATH));
 			}
-			else if (!omitted.contains(name) && !registered) {
-				problems.add(name, "is not registered in %s".formatted(IMPORTS_FILE));
+			else if (!unregisteredOnPurpose && !registered) {
+				problems.add(name, "is not registered in %s".formatted(AutoConfigurationImports.PATH));
 			}
 		}
 	}
 
 	private void checkOrdering(List<AutoConfigurationClass> autoConfigurations, Problems problems) {
-		// Reading every class name off two classpaths is not cheap, and a module whose
-		// auto-configurations order themselves against nothing has no use for either.
+		// Reading two whole classpaths is not cheap and nothing needs it when no order is
+		// declared.
 		if (autoConfigurations.stream().allMatch((autoConfiguration) -> autoConfiguration.references().isEmpty())) {
 			return;
 		}
@@ -136,11 +118,12 @@ public abstract class CheckAutoConfigurationClasses extends AutoConfigurationImp
 	}
 
 	/**
-	 * The rule both forms of the attribute are held to: refer to a class that may be
-	 * absent by name, and to one that is always there as a class.
+	 * The rule: naming a class loads it when the annotation is read, so a class that may
+	 * be absent must be referred to by name; one that is always there named as a string
+	 * is a name nothing will ever tell you has gone stale.
 	 * @param reference what one auto-configuration says about another
-	 * @param required every class the module resolves no matter what
-	 * @param optionalOnly every class it resolves only through an optional dependency
+	 * @param required every class the module always resolves
+	 * @param optionalOnly classes only an optional dependency brings
 	 * @return the problem, if the wrong form was used
 	 */
 	private Optional<String> problemWith(Reference reference, Set<String> required, Set<String> optionalOnly) {
@@ -155,11 +138,11 @@ public abstract class CheckAutoConfigurationClasses extends AutoConfigurationImp
 			return Optional.empty();
 		}
 		return Optional.of(required.contains(className) ? problem(attribute, className, "is from a required dependency")
-				: "%s '%s' was not found".formatted(attribute.attributeName(), className));
+				: "%s '%s' not found".formatted(attribute.attributeName(), className));
 	}
 
 	private String problem(Attribute attribute, String className, String because) {
-		return "%s '%s' %s and belongs in %s".formatted(attribute.attributeName(), className, because,
+		return "%s '%s' %s and should be declared in %s".formatted(attribute.attributeName(), className, because,
 				attribute.counterpart().attributeName());
 	}
 
@@ -174,6 +157,12 @@ public abstract class CheckAutoConfigurationClasses extends AutoConfigurationImp
 		return autoConfigurations;
 	}
 
+	/**
+	 * A resolved classpath arrives as jars or as directories of compiled output; both
+	 * count.
+	 * @param classpath the classpath to read
+	 * @return the binary names it holds
+	 */
 	private static Set<String> classNamesIn(FileCollection classpath) {
 		Set<String> classNames = new HashSet<>();
 		for (File file : classpath.getFiles()) {
@@ -219,8 +208,7 @@ public abstract class CheckAutoConfigurationClasses extends AutoConfigurationImp
 	}
 
 	/**
-	 * What was found, gathered by the class it was found in so that a module with several
-	 * problems is fixed in one pass rather than one build at a time.
+	 * Grouped by class so that a module with several problems is fixed in one pass.
 	 */
 	private static final class Problems {
 
@@ -235,10 +223,13 @@ public abstract class CheckAutoConfigurationClasses extends AutoConfigurationImp
 		}
 
 		private String report() {
-			StringBuilder report = new StringBuilder("Found auto-configuration problems:%n".formatted());
+			if (isEmpty()) {
+				return "";
+			}
+			StringBuilder report = new StringBuilder("Found auto-configuration class problems:%n".formatted());
 			this.byClassName.forEach((className, problems) -> {
-				report.append("    %s:%n".formatted(className));
-				problems.forEach((problem) -> report.append("        - %s%n".formatted(problem)));
+				report.append("  - %s:%n".formatted(className));
+				problems.forEach((problem) -> report.append("    - %s%n".formatted(problem)));
 			});
 			return report.toString();
 		}

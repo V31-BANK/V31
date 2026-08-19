@@ -141,8 +141,8 @@ public class ProtobufPlugin implements Plugin<Project> {
 		java.unwrap().srcDir(SourceSets.of(project).generatedSources());
 		project.getPluginManager().apply(IdeaPlugin.class);
 		IdeaModule module = project.getExtensions().getByType(IdeaModel.class).getModule();
-		module.getGeneratedSourceDirs().add(
-				java.directory(file -> file.toPath().endsWith(SourceSets.GENERATED_SOURCES)));
+		module.getGeneratedSourceDirs()
+			.add(java.directory((file) -> file.toPath().endsWith(SourceSets.GENERATED_SOURCES)));
 	}
 
 	private void generate(Project project, Api api) {
@@ -213,8 +213,7 @@ public class ProtobufPlugin implements Plugin<Project> {
 			task.setDescription("Fetches buf and the generators it runs.");
 			task.getBuf().set(fromMaven(root, "build.buf:buf", BUF_VERSION));
 			task.getProtoc().set(fromMaven(root, "com.google.protobuf:protoc", PROTOBUF_VERSION));
-			task.getGrpcJavaGenerator()
-				.set(fromMaven(root, "io.grpc:protoc-gen-grpc-java", GRPC_VERSION));
+			task.getGrpcJavaGenerator().set(fromMaven(root, "io.grpc:protoc-gen-grpc-java", GRPC_VERSION));
 			task.getDestination().set(root.getLayout().getBuildDirectory().dir(TOOLS));
 		});
 	}
