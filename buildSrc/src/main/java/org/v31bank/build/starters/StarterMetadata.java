@@ -16,9 +16,7 @@
 
 package org.v31bank.build.starters;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Properties;
@@ -40,6 +38,8 @@ import org.gradle.api.tasks.Classpath;
 import org.gradle.api.tasks.Input;
 import org.gradle.api.tasks.OutputFile;
 import org.gradle.api.tasks.TaskAction;
+
+import org.v31bank.build.util.PropertiesFiles;
 
 /**
  * Writes a properties file naming a starter and every artifact it resolves to.
@@ -110,26 +110,7 @@ public abstract class StarterMetadata extends DefaultTask {
 		properties.setProperty("dependencies", String.join(",", getDependencyNames().get()));
 		Path destination = getDestination().getAsFile().get().toPath();
 		Files.createDirectories(destination.getParent());
-		Files.write(destination, store(properties));
-	}
-
-	/**
-	 * {@link Properties#store} writes the current time as a comment and the platform's
-	 * line separator, either of which would make an unchanged starter produce a different
-	 * file. The stream overload is used because it escapes anything outside Latin-1, so
-	 * what comes back is ASCII and can be decoded to drop the comment.
-	 * @param properties the properties to render
-	 * @return the file's contents
-	 * @throws IOException if rendering fails
-	 */
-	private byte[] store(Properties properties) throws IOException {
-		ByteArrayOutputStream buffer = new ByteArrayOutputStream();
-		properties.store(buffer, null);
-		String content = buffer.toString(StandardCharsets.ISO_8859_1)
-			.lines()
-			.filter((line) -> !line.startsWith("#"))
-			.collect(Collectors.joining("\n", "", "\n"));
-		return content.getBytes(StandardCharsets.ISO_8859_1);
+		Files.write(destination, PropertiesFiles.render(properties));
 	}
 
 }

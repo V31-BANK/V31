@@ -81,6 +81,10 @@ gradlePlugin {
 			id = "org.v31bank.optional-dependencies"
 			implementationClass = "org.v31bank.build.optional.OptionalDependenciesPlugin"
 		}
+		autoConfigurationPlugin {
+			id = "org.v31bank.auto-configuration"
+			implementationClass = "org.v31bank.build.autoconfigure.AutoConfigurationPlugin"
+		}
 	}
 }
 
