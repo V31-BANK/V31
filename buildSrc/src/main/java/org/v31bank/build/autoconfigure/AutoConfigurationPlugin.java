@@ -22,7 +22,6 @@ import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ConfigurationContainer;
 import org.gradle.api.attributes.Category;
 import org.gradle.api.attributes.Usage;
-import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.TaskProvider;
@@ -107,8 +106,7 @@ public class AutoConfigurationPlugin implements Plugin<Project> {
 			.consumable(METADATA_NAME, (configuration) -> configuration.attributes((attributes) -> {
 				attributes.attribute(Category.CATEGORY_ATTRIBUTE,
 						project.getObjects().named(Category.class, Category.DOCUMENTATION));
-				attributes.attribute(Usage.USAGE_ATTRIBUTE,
-						project.getObjects().named(Usage.class, METADATA_USAGE));
+				attributes.attribute(Usage.USAGE_ATTRIBUTE, project.getObjects().named(Usage.class, METADATA_USAGE));
 			}));
 		TaskProvider<AutoConfigurationMetadata> metadata = project.getTasks()
 			.register(METADATA_NAME, AutoConfigurationMetadata.class, (task) -> {

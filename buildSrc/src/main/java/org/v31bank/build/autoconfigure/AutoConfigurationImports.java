@@ -52,11 +52,6 @@ public final class AutoConfigurationImports {
 	 * @param importsFile the file to read
 	 * @return the registered class names
 	 */
-	/**
-	 * Comments and blank lines are dropped, the way Spring Boot's own reader drops them.
-	 * @param importsFile the file to read
-	 * @return what the file holds
-	 */
 	public static List<String> read(File importsFile) {
 		try {
 			return Files.readAllLines(importsFile.toPath())
