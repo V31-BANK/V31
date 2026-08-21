@@ -20,6 +20,9 @@ import org.gradle.api.Plugin;
 import org.gradle.api.Project;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.ConfigurationContainer;
+import org.gradle.api.attributes.Category;
+import org.gradle.api.attributes.Usage;
+import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.TaskProvider;
@@ -27,7 +30,6 @@ import org.gradle.language.base.plugins.LifecycleBasePlugin;
 
 import org.v31bank.build.DeployedPlugin;
 import org.v31bank.build.optional.OptionalDependenciesPlugin;
-import org.v31bank.build.util.MetadataConfiguration;
 import org.v31bank.build.util.SourceSets;
 
 /**
@@ -101,6 +103,13 @@ public class AutoConfigurationPlugin implements Plugin<Project> {
 	}
 
 	private void registerMetadata(Project project, SourceSet main) {
+		project.getConfigurations()
+			.consumable(METADATA_NAME, (configuration) -> configuration.attributes((attributes) -> {
+				attributes.attribute(Category.CATEGORY_ATTRIBUTE,
+						project.getObjects().named(Category.class, Category.DOCUMENTATION));
+				attributes.attribute(Usage.USAGE_ATTRIBUTE,
+						project.getObjects().named(Usage.class, METADATA_USAGE));
+			}));
 		TaskProvider<AutoConfigurationMetadata> metadata = project.getTasks()
 			.register(METADATA_NAME, AutoConfigurationMetadata.class, (task) -> {
 				task.setDescription("Generates metadata describing the module's auto-configurations.");
@@ -108,7 +117,6 @@ public class AutoConfigurationPlugin implements Plugin<Project> {
 				task.dependsOn(main.getClassesTaskName());
 				task.getOutputFile().set(project.getLayout().getBuildDirectory().file(METADATA_FILE));
 			});
-		MetadataConfiguration.create(project, METADATA_NAME, METADATA_USAGE);
 		project.getArtifacts()
 			.add(METADATA_NAME, metadata.map(AutoConfigurationMetadata::getOutputFile),
 					(artifact) -> artifact.builtBy(metadata));
@@ -154,9 +162,14 @@ public class AutoConfigurationPlugin implements Plugin<Project> {
 	 */
 	private Configuration requiredClasspath(Project project, SourceSet main) {
 		ConfigurationContainer configurations = project.getConfigurations();
-		Configuration required = resolvable(project, REQUIRED_CLASSPATH_CONFIGURATION_NAME,
-				configurations.getByName(main.getImplementationConfigurationName()),
-				configurations.getByName(main.getRuntimeOnlyConfigurationName()));
+		// Declared in and resolved from the same configuration, which the role-based
+		// factories cannot express: a resolvable one accepts no declarations.
+		Configuration required = configurations.create(REQUIRED_CLASSPATH_CONFIGURATION_NAME, (configuration) -> {
+			configuration.setCanBeConsumed(false);
+			configuration.setCanBeResolved(true);
+			configuration.extendsFrom(configurations.getByName(main.getImplementationConfigurationName()),
+					configurations.getByName(main.getRuntimeOnlyConfigurationName()));
+		});
 		required.getDependencies().add(project.getDependencies().create(AUTOCONFIGURE));
 		return required;
 	}
@@ -176,11 +189,9 @@ public class AutoConfigurationPlugin implements Plugin<Project> {
 	 * @return the configuration to resolve
 	 */
 	private Configuration resolvable(Project project, String name, Configuration... parents) {
-		return project.getConfigurations().create(name, (configuration) -> {
-			configuration.setCanBeConsumed(false);
-			configuration.setCanBeResolved(true);
-			configuration.extendsFrom(parents);
-		});
+		return project.getConfigurations()
+			.resolvable(name, (configuration) -> configuration.extendsFrom(parents))
+			.get();
 	}
 
 }

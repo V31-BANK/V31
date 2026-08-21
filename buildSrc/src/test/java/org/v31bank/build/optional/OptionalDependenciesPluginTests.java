@@ -69,12 +69,15 @@ class OptionalDependenciesPluginTests {
 	}
 
 	/**
-	 * The only thing the consumable role decides here: without it
-	 * {@code project(path = ":module:X", configuration = "optional")} fails outright.
+	 * A bucket and nothing else: dependencies go in, this project's classpaths take them
+	 * out by extending it. It resolves nothing and offers nothing to another project,
+	 * because an optional dependency is this module's business alone.
 	 */
 	@Test
-	void letsAnotherProjectAskForTheseDependenciesByName() {
-		assertThat(optional(javaProject()).isCanBeConsumed()).isTrue();
+	void declaresDependenciesAndNothingElse() {
+		Configuration optional = optional(javaProject());
+		assertThat(optional.isCanBeResolved()).isFalse();
+		assertThat(optional.isCanBeConsumed()).isFalse();
 	}
 
 	@Test

@@ -61,10 +61,7 @@ public class OptionalDependenciesPlugin implements Plugin<Project> {
 	@Override
 	public void apply(Project project) {
 		ConfigurationContainer configurations = project.getConfigurations();
-		Configuration optional = configurations.create(OPTIONAL_CONFIGURATION_NAME, (configuration) -> {
-			configuration.setCanBeConsumed(true);
-			configuration.setCanBeResolved(false);
-		});
+		Configuration optional = configurations.dependencyScope(OPTIONAL_CONFIGURATION_NAME).get();
 		project.getPlugins().withType(JavaPlugin.class, (_) -> SourceSets.of(project).unwrap().all((sourceSet) -> {
 			configurations.getByName(sourceSet.getCompileClasspathConfigurationName()).extendsFrom(optional);
 			configurations.getByName(sourceSet.getRuntimeClasspathConfigurationName()).extendsFrom(optional);

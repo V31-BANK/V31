@@ -27,6 +27,7 @@ import org.gradle.testfixtures.ProjectBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
@@ -34,7 +35,8 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
  * Tests for {@link CheckAutoConfigurationClasses}.
  * <p>
  * A dependency is a directory of class files here rather than a jar, which is one of the
- * two shapes a resolved classpath comes in and the one a test can write.
+ * two shapes a resolved classpath comes in and the one a test can write. What is wrong is
+ * asserted on the report the check leaves behind, because that is where it says it.
  *
  * @author Xander Wang
  * @since 0.2.0
@@ -42,6 +44,8 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 class CheckAutoConfigurationClassesTests {
 
 	private static final String EXAMPLE = "com.example.ExampleAutoConfiguration";
+
+	private static final String TEST_SLICE = "com.example.ExampleTestAutoConfiguration";
 
 	private static final String ALWAYS_THERE = "com.example.AlwaysThereAutoConfiguration";
 
@@ -54,43 +58,28 @@ class CheckAutoConfigurationClassesTests {
 	void passesWhenEveryAnnotatedClassIsRegistered() {
 		ClassFiles.autoConfiguration(EXAMPLE).writeTo(classes());
 		writeImports(EXAMPLE);
-		assertThatCode(task()::check).doesNotThrowAnyException();
+		CheckAutoConfigurationClasses task = task();
+		assertThatCode(task::check).doesNotThrowAnyException();
+		assertThat(report(task)).isEmpty();
 	}
 
 	@Test
 	void failsWhenAnAnnotatedClassIsNotRegistered() {
 		ClassFiles.autoConfiguration(EXAMPLE).writeTo(classes());
 		writeImports();
-		assertThatExceptionOfType(VerificationException.class).isThrownBy(task()::check)
-			.withMessageContaining(EXAMPLE)
-			.withMessageContaining("is not registered in");
-	}
-
-	/**
-	 * The mistake that made skipping on an absent file the wrong thing to do: a module's
-	 * first auto-configuration, written before anyone thought about the file that has to
-	 * name it.
-	 */
-	@Test
-	void failsWhenThereIsNoImportsFileAtAllToRegisterIn() {
-		ClassFiles.autoConfiguration(EXAMPLE).writeTo(classes());
-		assertThatExceptionOfType(VerificationException.class).isThrownBy(task()::check)
-			.withMessageContaining(EXAMPLE)
-			.withMessageContaining("is not registered in");
-	}
-
-	@Test
-	void passesWhenThereIsNeitherAnImportsFileNorAnythingToRegister() {
-		ClassFiles.plainClass("com.example.Plain").writeTo(classes());
-		assertThatCode(task()::check).doesNotThrowAnyException();
+		CheckAutoConfigurationClasses task = task();
+		assertThatExceptionOfType(VerificationException.class).isThrownBy(task::check)
+			.withMessageContaining(AutoConfigurationImportsTask.FAILURE_REPORT);
+		assertThat(report(task)).contains(EXAMPLE).contains("is not registered in");
 	}
 
 	@Test
 	void failsWhenTheNameDoesNotSayWhatTheClassIs() {
 		ClassFiles.autoConfiguration("com.example.ExampleConfig").writeTo(classes());
 		writeImports("com.example.ExampleConfig");
-		assertThatExceptionOfType(VerificationException.class).isThrownBy(task()::check)
-			.withMessageContaining("name should end with AutoConfiguration");
+		CheckAutoConfigurationClasses task = task();
+		assertThatExceptionOfType(VerificationException.class).isThrownBy(task::check);
+		assertThat(report(task)).contains("name should end with AutoConfiguration");
 	}
 
 	@Test
@@ -108,8 +97,28 @@ class CheckAutoConfigurationClassesTests {
 		writeImports(EXAMPLE);
 		CheckAutoConfigurationClasses task = task();
 		task.getOmittedFromImports().add(EXAMPLE);
-		assertThatExceptionOfType(VerificationException.class).isThrownBy(task::check)
-			.withMessageContaining("declared as omitted from it");
+		assertThatExceptionOfType(VerificationException.class).isThrownBy(task::check);
+		assertThat(report(task)).contains("should not be registered in");
+	}
+
+	/**
+	 * A test slice is asked for by name rather than registered, so leaving it out of the
+	 * file is right and no module has to say so.
+	 */
+	@Test
+	void expectsATestSliceToBeLeftUnregistered() {
+		ClassFiles.autoConfiguration(TEST_SLICE).writeTo(classes());
+		writeImports();
+		assertThatCode(task()::check).doesNotThrowAnyException();
+	}
+
+	@Test
+	void failsWhenATestSliceIsRegisteredAnyway() {
+		ClassFiles.autoConfiguration(TEST_SLICE).writeTo(classes());
+		writeImports(TEST_SLICE);
+		CheckAutoConfigurationClasses task = task();
+		assertThatExceptionOfType(VerificationException.class).isThrownBy(task::check);
+		assertThat(report(task)).contains("should not be registered in");
 	}
 
 	@Test
@@ -117,9 +126,11 @@ class CheckAutoConfigurationClassesTests {
 		ClassFiles.autoConfiguration(EXAMPLE).before(MAY_BE_ABSENT).writeTo(classes());
 		ClassFiles.plainClass(MAY_BE_ABSENT).writeTo(optionalDependencies());
 		writeImports(EXAMPLE);
-		assertThatExceptionOfType(VerificationException.class).isThrownBy(task()::check)
-			.withMessageContaining(
-					"before '%s' is from an optional dependency and belongs in beforeName".formatted(MAY_BE_ABSENT));
+		CheckAutoConfigurationClasses task = task();
+		assertThatExceptionOfType(VerificationException.class).isThrownBy(task::check);
+		assertThat(report(task))
+			.contains("before '%s' is from an optional dependency and should be declared in beforeName"
+				.formatted(MAY_BE_ABSENT));
 	}
 
 	@Test
@@ -127,17 +138,60 @@ class CheckAutoConfigurationClassesTests {
 		ClassFiles.autoConfiguration(EXAMPLE).afterName(ALWAYS_THERE).writeTo(classes());
 		ClassFiles.plainClass(ALWAYS_THERE).writeTo(requiredDependencies());
 		writeImports(EXAMPLE);
-		assertThatExceptionOfType(VerificationException.class).isThrownBy(task()::check)
-			.withMessageContaining(
-					"afterName '%s' is from a required dependency and belongs in after".formatted(ALWAYS_THERE));
+		CheckAutoConfigurationClasses task = task();
+		assertThatExceptionOfType(VerificationException.class).isThrownBy(task::check);
+		assertThat(report(task)).contains(
+				"afterName '%s' is from a required dependency and should be declared in after".formatted(ALWAYS_THERE));
 	}
 
 	@Test
 	void failsWhenANameMatchesNothingOnEitherClasspath() {
 		ClassFiles.autoConfiguration(EXAMPLE).beforeName("com.example.GoneAutoConfiguration").writeTo(classes());
 		writeImports(EXAMPLE);
-		assertThatExceptionOfType(VerificationException.class).isThrownBy(task()::check)
-			.withMessageContaining("beforeName 'com.example.GoneAutoConfiguration' was not found");
+		CheckAutoConfigurationClasses task = task();
+		assertThatExceptionOfType(VerificationException.class).isThrownBy(task::check);
+		assertThat(report(task)).contains("beforeName 'com.example.GoneAutoConfiguration' not found");
+	}
+
+	/**
+	 * All four attributes, each used the wrong way round, so that the message for every
+	 * one of them is produced rather than the two that happen to be tested elsewhere.
+	 */
+	@Test
+	void namesEveryAttributeItRejects() {
+		ClassFiles.autoConfiguration(EXAMPLE)
+			.before(MAY_BE_ABSENT)
+			.after(MAY_BE_ABSENT)
+			.beforeName(ALWAYS_THERE)
+			.afterName(ALWAYS_THERE)
+			.writeTo(classes());
+		ClassFiles.plainClass(MAY_BE_ABSENT).writeTo(optionalDependencies());
+		ClassFiles.plainClass(ALWAYS_THERE).writeTo(requiredDependencies());
+		writeImports(EXAMPLE);
+		CheckAutoConfigurationClasses task = task();
+		assertThatExceptionOfType(VerificationException.class).isThrownBy(task::check);
+		assertThat(report(task))
+			.contains("before '%s' is from an optional dependency and should be declared in beforeName"
+				.formatted(MAY_BE_ABSENT))
+			.contains("after '%s' is from an optional dependency and should be declared in afterName"
+				.formatted(MAY_BE_ABSENT))
+			.contains("beforeName '%s' is from a required dependency and should be declared in before"
+				.formatted(ALWAYS_THERE))
+			.contains("afterName '%s' is from a required dependency and should be declared in after"
+				.formatted(ALWAYS_THERE));
+	}
+
+	@Test
+	void namesEveryAttributeWhoseTargetIsNowhere() {
+		ClassFiles.autoConfiguration(EXAMPLE)
+			.beforeName("com.example.GoneA")
+			.afterName("com.example.GoneB")
+			.writeTo(classes());
+		writeImports(EXAMPLE);
+		CheckAutoConfigurationClasses task = task();
+		assertThatExceptionOfType(VerificationException.class).isThrownBy(task::check);
+		assertThat(report(task)).contains("beforeName 'com.example.GoneA' not found")
+			.contains("afterName 'com.example.GoneB' not found");
 	}
 
 	@Test
@@ -166,10 +220,11 @@ class CheckAutoConfigurationClassesTests {
 	void gathersEveryProblemOfOneClassTogether() {
 		ClassFiles.autoConfiguration("com.example.ExampleConfig").beforeName("com.example.Gone").writeTo(classes());
 		writeImports();
-		assertThatExceptionOfType(VerificationException.class).isThrownBy(task()::check)
-			.withMessageContaining("name should end with AutoConfiguration")
-			.withMessageContaining("is not registered in")
-			.withMessageContaining("beforeName 'com.example.Gone' was not found");
+		CheckAutoConfigurationClasses task = task();
+		assertThatExceptionOfType(VerificationException.class).isThrownBy(task::check);
+		assertThat(report(task)).contains("name should end with AutoConfiguration")
+			.contains("is not registered in")
+			.contains("beforeName 'com.example.Gone' not found");
 	}
 
 	@Test
@@ -195,6 +250,16 @@ class CheckAutoConfigurationClassesTests {
 		assertThatExceptionOfType(UncheckedIOException.class).isThrownBy(task::check);
 	}
 
+	/**
+	 * A module with no imports file has nothing for this to read, so Gradle skips it:
+	 * {@code getSource()} is what carries {@code @SkipWhenEmpty}.
+	 */
+	@Test
+	void hasNothingToReadWhenTheModuleHasNoImportsFile() {
+		ClassFiles.autoConfiguration(EXAMPLE).writeTo(classes());
+		assertThat(task().getSource().isEmpty()).isTrue();
+	}
+
 	private CheckAutoConfigurationClasses task() {
 		Project project = ProjectBuilder.builder().withProjectDir(this.directory.toFile()).build();
 		CheckAutoConfigurationClasses task = project.getTasks()
@@ -205,6 +270,11 @@ class CheckAutoConfigurationClassesTests {
 		task.getRequiredDependencies().from(requiredDependencies().toFile());
 		task.getOptionalDependencies().from(optionalDependencies().toFile());
 		return task;
+	}
+
+	private String report(AutoConfigurationImportsTask task) {
+		return read(
+				task.getOutputDirectory().file(AutoConfigurationImportsTask.FAILURE_REPORT).get().getAsFile().toPath());
 	}
 
 	private Path classes() {
@@ -228,8 +298,17 @@ class CheckAutoConfigurationClassesTests {
 	}
 
 	private void writeImports(String... entries) {
-		write(resources().resolve(AutoConfigurationImportsTask.IMPORTS_FILE),
+		write(resources().resolve(AutoConfigurationImports.PATH),
 				String.join(System.lineSeparator(), entries) + System.lineSeparator());
+	}
+
+	private String read(Path file) {
+		try {
+			return Files.readString(file);
+		}
+		catch (IOException ex) {
+			throw new UncheckedIOException("Failed to read " + file, ex);
+		}
 	}
 
 	private Path write(Path file, String content) {

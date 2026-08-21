@@ -120,10 +120,7 @@ class JavaConventions {
 	 */
 	private void configureDependencyManagement(Project project) {
 		ConfigurationContainer configurations = project.getConfigurations();
-		Configuration dependencyManagement = configurations.create("dependencyManagement", (configuration) -> {
-			configuration.setCanBeConsumed(false);
-			configuration.setCanBeResolved(false);
-		});
+		Configuration dependencyManagement = configurations.dependencyScope("dependencyManagement").get();
 		configurations.matching(JavaConventions::needsManagedVersions)
 			.all((configuration) -> configuration.extendsFrom(dependencyManagement));
 		Dependency platform = project.getDependencies()

@@ -16,14 +16,13 @@
 
 plugins {
     `java-library`
-    id("org.v31bank.deployed")
+    id("org.v31bank.auto-configuration")
+    //id("org.v31bank.configuration-properties")
 }
 
 description = "V31 gRPC auto-configuration"
 
 dependencies {
-    annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
-
     api("org.springframework.boot:spring-boot")
     api("org.springframework.boot:spring-boot-autoconfigure")
     api("org.springframework.boot:spring-boot-grpc-server")

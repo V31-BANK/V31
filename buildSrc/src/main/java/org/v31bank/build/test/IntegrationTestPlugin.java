@@ -104,6 +104,11 @@ public class IntegrationTestPlugin implements Plugin<Project> {
 			task.setTestClassesDirs(intTestSourceSet.getOutput().getClassesDirs());
 			task.setClasspath(intTestSourceSet.getRuntimeClasspath());
 			task.shouldRunAfter(JavaPlugin.TEST_TASK_NAME);
+			// An integration test drives a build of its own, and Gradle's native-platform
+			// loads a library from an unnamed module. Granting the access up front keeps
+			// JEP 472's warning out of the output, and keeps the test running when a
+			// later JDK turns that warning into a failure.
+			task.jvmArgs("--enable-native-access=ALL-UNNAMED");
 		});
 	}
 

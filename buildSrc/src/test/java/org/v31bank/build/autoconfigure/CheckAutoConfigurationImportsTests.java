@@ -33,6 +33,9 @@ import static org.assertj.core.api.Assertions.assertThatExceptionOfType;
 
 /**
  * Tests for {@link CheckAutoConfigurationImports}.
+ * <p>
+ * The failure tells you where to look and the report tells you what is wrong, so both are
+ * asserted: a check that threw without writing down why would pass half of these.
  *
  * @author Xander Wang
  * @since 0.2.0
@@ -51,34 +54,45 @@ class CheckAutoConfigurationImportsTests {
 		ClassFiles.autoConfiguration(A).writeTo(classes());
 		ClassFiles.autoConfiguration(B).writeTo(classes());
 		writeImports(A, B);
-		assertThatCode(task()::check).doesNotThrowAnyException();
+		CheckAutoConfigurationImports task = task();
+		assertThatCode(task::check).doesNotThrowAnyException();
+		assertThat(report(task)).isEmpty();
 	}
 
 	@Test
 	void failsWhenAnEntryNamesAClassThatIsNotThere() {
 		ClassFiles.autoConfiguration(A).writeTo(classes());
 		writeImports(A, B);
-		assertThatExceptionOfType(VerificationException.class).isThrownBy(task()::check)
-			.withMessageContaining("'%s' was not found".formatted(B))
-			.withMessageContaining(AutoConfigurationImportsTask.IMPORTS_FILE);
+		CheckAutoConfigurationImports task = task();
+		assertThatExceptionOfType(VerificationException.class).isThrownBy(task::check)
+			.withMessageContaining(AutoConfigurationImports.PATH)
+			.withMessageContaining(AutoConfigurationImportsTask.FAILURE_REPORT);
+		assertThat(report(task)).contains("'%s' was not found".formatted(B));
 	}
 
 	@Test
 	void failsWhenAnEntryNamesAClassThatLostItsAnnotation() {
 		ClassFiles.plainClass(A).writeTo(classes());
 		writeImports(A);
-		assertThatExceptionOfType(VerificationException.class).isThrownBy(task()::check)
-			.withMessageContaining("'%s' is not annotated with @AutoConfiguration".formatted(A));
+		CheckAutoConfigurationImports task = task();
+		assertThatExceptionOfType(VerificationException.class).isThrownBy(task::check);
+		assertThat(report(task)).contains("'%s' is not annotated with @AutoConfiguration".formatted(A));
 	}
 
+	/**
+	 * The order to use is written out rather than described, so that fixing the file is a
+	 * copy rather than a sort by hand.
+	 */
 	@Test
-	void failsWhenTheEntriesAreOutOfOrderAndSaysWhatOrderToUse() {
+	void failsWhenTheEntriesAreOutOfOrderAndWritesOutTheOrderToUse() {
 		ClassFiles.autoConfiguration(A).writeTo(classes());
 		ClassFiles.autoConfiguration(B).writeTo(classes());
 		writeImports(B, A);
-		assertThatExceptionOfType(VerificationException.class).isThrownBy(task()::check)
-			.withMessageContaining("sorted alphabetically")
-			.satisfies((failure) -> assertThat(failure.getMessage()).containsSubsequence(A, B));
+		CheckAutoConfigurationImports task = task();
+		assertThatExceptionOfType(VerificationException.class).isThrownBy(task::check);
+		assertThat(report(task)).contains("sorted alphabetically");
+		assertThat(read(outputDirectory(task).resolve("sorted-" + AutoConfigurationImports.FILE_NAME)))
+			.containsSubsequence(A, B);
 	}
 
 	@Test
@@ -89,13 +103,14 @@ class CheckAutoConfigurationImportsTests {
 	}
 
 	/**
-	 * Whether the module needed a file is a question about its classes, which
-	 * {@link CheckAutoConfigurationClasses} answers.
+	 * A module with no imports file registers nothing, and a check with nothing to read
+	 * is skipped by Gradle rather than run: {@code getSource()} is what carries
+	 * {@code @SkipWhenEmpty}.
 	 */
 	@Test
-	void saysNothingAboutAModuleWithNoImportsFile() {
+	void hasNothingToReadWhenTheModuleHasNoImportsFile() {
 		ClassFiles.autoConfiguration(A).writeTo(classes());
-		assertThatCode(task()::check).doesNotThrowAnyException();
+		assertThat(task().getSource().isEmpty()).isTrue();
 	}
 
 	private CheckAutoConfigurationImports task() {
@@ -108,6 +123,14 @@ class CheckAutoConfigurationImportsTests {
 		return task;
 	}
 
+	private String report(AutoConfigurationImportsTask task) {
+		return read(outputDirectory(task).resolve(AutoConfigurationImportsTask.FAILURE_REPORT));
+	}
+
+	private Path outputDirectory(AutoConfigurationImportsTask task) {
+		return task.getOutputDirectory().get().getAsFile().toPath();
+	}
+
 	private Path classes() {
 		return this.directory.resolve("classes");
 	}
@@ -116,8 +139,17 @@ class CheckAutoConfigurationImportsTests {
 		return this.directory.resolve("resources");
 	}
 
+	private String read(Path file) {
+		try {
+			return Files.readString(file);
+		}
+		catch (IOException ex) {
+			throw new UncheckedIOException("Failed to read " + file, ex);
+		}
+	}
+
 	private void writeImports(String... lines) {
-		Path importsFile = resources().resolve(AutoConfigurationImportsTask.IMPORTS_FILE);
+		Path importsFile = resources().resolve(AutoConfigurationImports.PATH);
 		try {
 			Files.createDirectories(importsFile.getParent());
 			Files.writeString(importsFile, String.join(System.lineSeparator(), lines) + System.lineSeparator());

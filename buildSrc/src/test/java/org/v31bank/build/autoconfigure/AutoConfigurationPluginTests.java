@@ -25,7 +25,8 @@ import org.gradle.api.Project;
 import org.gradle.api.Task;
 import org.gradle.api.artifacts.Configuration;
 import org.gradle.api.artifacts.Dependency;
-import org.gradle.api.plugins.JavaLibraryPlugin;
+import org.gradle.api.attributes.Category;
+import org.gradle.api.attributes.Usage;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
@@ -33,6 +34,7 @@ import org.gradle.testfixtures.ProjectBuilder;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import org.v31bank.build.ConventionsPlugin;
 import org.v31bank.build.DeployedPlugin;
 import org.v31bank.build.optional.OptionalDependenciesPlugin;
 import org.v31bank.build.task.TaskDependencies;
@@ -57,18 +59,58 @@ class AutoConfigurationPluginTests {
 	private File directory;
 
 	@Test
-	void buildsALibraryThatIsPublished() {
-		Project project = project();
-		assertThat(project.getPlugins().hasPlugin(JavaLibraryPlugin.class)).isTrue();
+	void publishesTheModule() {
+		assertThat(project().getPlugins().hasPlugin(DeployedPlugin.class)).isTrue();
+	}
+
+	/**
+	 * Whether a module is a library or a plain jar is the module's decision. Publication
+	 * is not conditional on it, but everything that needs a source set waits for the java
+	 * plugin the module chose rather than choosing one for it.
+	 */
+	@Test
+	void decidesNothingAboutHowTheModuleIsBuilt() {
+		Project project = module();
+		project.getPlugins().apply(AutoConfigurationPlugin.class);
+		assertThat(project.getPlugins().hasPlugin(JavaPlugin.class)).isFalse();
 		assertThat(project.getPlugins().hasPlugin(DeployedPlugin.class)).isTrue();
+		assertThat(project.getTasks().findByName(AutoConfigurationPlugin.CHECK_IMPORTS_TASK_NAME)).isNull();
+		assertThat(project.getTasks().findByName(AutoConfigurationPlugin.CHECK_CLASSES_TASK_NAME)).isNull();
+		assertThat(project.getTasks().findByName(AutoConfigurationPlugin.METADATA_NAME)).isNull();
 	}
 
 	@Test
-	void compilesWithTheProcessorsAnAutoConfigurationModuleNeeds() {
+	void configuresAModuleBuiltWithPlainJava() {
+		Project project = moduleBuiltWith("java");
+		assertThat(project.getTasks().findByName(AutoConfigurationPlugin.CHECK_IMPORTS_TASK_NAME)).isNotNull();
+		assertThat(project.getTasks().findByName(AutoConfigurationPlugin.METADATA_NAME)).isNotNull();
+		assertThat(
+				project.getConfigurations().findByName(AutoConfigurationPlugin.REQUIRED_CLASSPATH_CONFIGURATION_NAME))
+			.isNotNull();
+	}
+
+	@Test
+	void configuresAModuleWhoseJavaPluginArrivesAfterwards() {
+		Project project = module();
+		project.getPlugins().apply(AutoConfigurationPlugin.class);
+		project.getPlugins().apply("java-library");
+		assertThat(project.getTasks().findByName(AutoConfigurationPlugin.CHECK_CLASSES_TASK_NAME)).isNotNull();
+	}
+
+	/**
+	 * The processor that writes configuration property metadata belongs to
+	 * {@code org.v31bank.configuration-properties}. A module registering
+	 * auto-configurations does not necessarily declare any properties, and one declaring
+	 * properties does not necessarily register any auto-configuration, so neither plugin
+	 * brings the other's processor along.
+	 */
+	@Test
+	void compilesWithTheProcessorAnAutoConfigurationModuleNeedsAndNoOther() {
 		Configuration annotationProcessor = project().getConfigurations()
 			.getByName(JavaPlugin.ANNOTATION_PROCESSOR_CONFIGURATION_NAME);
 		assertThat(annotationProcessor.getDependencies()).extracting(Dependency::getName)
-			.contains("spring-boot-configuration-processor", "spring-boot-autoconfigure-processor");
+			.contains("spring-boot-autoconfigure-processor")
+			.doesNotContain("spring-boot-configuration-processor");
 	}
 
 	@Test
@@ -204,7 +246,7 @@ class AutoConfigurationPluginTests {
 		Project project = project();
 		AutoConfigurationMetadata metadata = (AutoConfigurationMetadata) project.getTasks()
 			.getByName(AutoConfigurationPlugin.METADATA_NAME);
-		assertThat(metadata.getDestination().get().getAsFile()).hasName("auto-configuration-metadata.properties")
+		assertThat(metadata.getOutputFile().get().getAsFile()).hasName("auto-configuration-metadata.properties")
 			.hasParent(project.getLayout().getBuildDirectory().get().getAsFile());
 	}
 
@@ -220,8 +262,36 @@ class AutoConfigurationPluginTests {
 			.getByName(AutoConfigurationPlugin.METADATA_NAME);
 		AutoConfigurationImportsTask check = (AutoConfigurationImportsTask) project.getTasks()
 			.getByName(AutoConfigurationPlugin.CHECK_IMPORTS_TASK_NAME);
-		assertThat(metadata.getResources().getFrom()).containsExactly(main.getOutput());
+		assertThat(metadata.getAutoConfigurationImports().get().getAsFile())
+			.hasParent(new File(main.getOutput().getResourcesDir(), "META-INF/spring"));
 		assertThat(check.getResources().getFrom()).containsExactly(main.getResources());
+	}
+
+	/**
+	 * The metadata is collected from many modules at once, so it says what it is rather
+	 * than leaving a consumer to select a jar by accident.
+	 */
+	@Test
+	void saysWhatTheMetadataIsSoThatItCanBeCollected() {
+		Configuration metadata = project().getConfigurations().getByName(AutoConfigurationPlugin.METADATA_NAME);
+		assertThat(metadata.isCanBeConsumed()).isTrue();
+		assertThat(metadata.isCanBeResolved()).isFalse();
+		assertThat(metadata.getAttributes().getAttribute(Category.CATEGORY_ATTRIBUTE)).extracting(Category::getName)
+			.isEqualTo(Category.DOCUMENTATION);
+		assertThat(metadata.getAttributes().getAttribute(Usage.USAGE_ATTRIBUTE)).extracting(Usage::getName)
+			.isEqualTo("auto-configuration-metadata");
+	}
+
+	/**
+	 * Spring Boot's own auto-configurations are on the required classpath whether or not
+	 * a module named them, because they are what a module orders itself against most
+	 * often.
+	 */
+	@Test
+	void alwaysCountsSpringBootsOwnAutoConfigurationsAsRequired() {
+		Configuration required = project().getConfigurations()
+			.getByName(AutoConfigurationPlugin.REQUIRED_CLASSPATH_CONFIGURATION_NAME);
+		assertThat(required.getDependencies()).extracting(Dependency::getName).contains("spring-boot-autoconfigure");
 	}
 
 	private static Set<String> parentNames(Configuration configuration) {
@@ -229,8 +299,23 @@ class AutoConfigurationPluginTests {
 	}
 
 	private Project project() {
-		// The conventions depend on the platform project by path, so it has to exist
-		// first.
+		return moduleBuiltWith("java-library");
+	}
+
+	private Project moduleBuiltWith(String javaPlugin) {
+		Project project = module();
+		project.getPlugins().apply(javaPlugin);
+		project.getPlugins().apply(AutoConfigurationPlugin.class);
+		return project;
+	}
+
+	/**
+	 * A subproject as the root build hands it over: the platform project it reaches by
+	 * path, the properties the conventions read, and the conventions themselves. No java
+	 * plugin — that is the module's own decision and the point of several tests here.
+	 * @return the project under test
+	 */
+	private Project module() {
 		Project root = ProjectBuilder.builder().withName("V31").withProjectDir(this.directory).build();
 		Project platform = ProjectBuilder.builder().withName("platform").withParent(root).build();
 		ProjectBuilder.builder().withName("V31-internal-dependencies").withParent(platform).build();
@@ -240,7 +325,7 @@ class AutoConfigurationPluginTests {
 		project.getExtensions().getExtraProperties().set("buildJavaVersion", "25");
 		project.getExtensions().getExtraProperties().set("runtimeJavaVersion", "25");
 		project.getExtensions().getExtraProperties().set("checkstyleToolVersion", "12.3.1");
-		project.getPlugins().apply(AutoConfigurationPlugin.class);
+		project.getPlugins().apply(ConventionsPlugin.class);
 		return project;
 	}
 

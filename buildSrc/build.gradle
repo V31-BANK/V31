@@ -85,6 +85,14 @@ gradlePlugin {
 			id = "org.v31bank.auto-configuration"
 			implementationClass = "org.v31bank.build.autoconfigure.AutoConfigurationPlugin"
 		}
+		configurationPropertiesPlugin {
+			id = "org.v31bank.configuration-properties"
+			implementationClass = "org.v31bank.build.properties.ConfigurationPropertiesPlugin"
+		}
+		configurationMetadataPlugin {
+			id = "org.v31bank.configuration-metadata"
+			implementationClass = "org.v31bank.build.properties.ConfigurationMetadataPlugin"
+		}
 	}
 }
 

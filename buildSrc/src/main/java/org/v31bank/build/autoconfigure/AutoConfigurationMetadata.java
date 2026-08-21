@@ -25,6 +25,7 @@ import java.util.Properties;
 import java.util.Set;
 
 import org.gradle.api.DefaultTask;
+import org.gradle.api.Project;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.RegularFileProperty;
 import org.gradle.api.provider.Property;
@@ -49,6 +50,10 @@ import org.v31bank.build.util.PropertiesFiles;
 public abstract class AutoConfigurationMetadata extends DefaultTask {
 
 	public AutoConfigurationMetadata() {
+		Project project = getProject();
+		getStarterName().convention(project.provider(project::getName));
+		getStarterDescription().convention(project.provider(project::getDescription));
+
 		getModuleName().convention(getProject().provider(getProject()::getName));
 	}
 

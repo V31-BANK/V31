@@ -68,3 +68,4 @@ include("starter:V31-web-spring-boot-starter")
 include("module:V31-web-spring-boot")
 
 include("integration-test:V31-bom-integration-test")
+include("integration-test:V31-configuration-roles-integration-test")

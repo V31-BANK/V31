@@ -23,7 +23,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Properties;
 
-import org.gradle.api.GradleException;
 import org.gradle.api.Project;
 import org.gradle.testfixtures.ProjectBuilder;
 import org.junit.jupiter.api.Test;
@@ -53,7 +52,7 @@ class AutoConfigurationMetadataTests {
 		writeImports(FIRST);
 		AutoConfigurationMetadata task = task();
 		task.getModuleName().set("V31-example-spring-boot");
-		task.generateMetadata();
+		task.documentAutoConfiguration();
 		assertThat(metadata()).containsEntry("module", "V31-example-spring-boot")
 			.containsEntry("autoConfigurationClassNames", FIRST);
 	}
@@ -73,7 +72,7 @@ class AutoConfigurationMetadataTests {
 		ClassFiles.autoConfiguration(FIRST).writeTo(classes());
 		ClassFiles.autoConfiguration(SECOND).notPublic().writeTo(classes());
 		writeImports(FIRST, SECOND);
-		task().generateMetadata();
+		task().documentAutoConfiguration();
 		assertThat(metadata().getProperty("autoConfigurationClassNames")).isEqualTo(FIRST);
 	}
 
@@ -82,13 +81,14 @@ class AutoConfigurationMetadataTests {
 		ClassFiles.autoConfiguration(SECOND).writeTo(classes());
 		ClassFiles.autoConfiguration(FIRST).writeTo(classes());
 		writeImports(SECOND, FIRST);
-		task().generateMetadata();
+		task().documentAutoConfiguration();
 		assertThat(metadata().getProperty("autoConfigurationClassNames")).isEqualTo(SECOND + "," + FIRST);
 	}
 
 	@Test
 	void saysSoWhenTheModuleRegistersNothing() throws IOException {
-		task().generateMetadata();
+		writeImports();
+		task().documentAutoConfiguration();
 		assertThat(metadata()).containsEntry("autoConfigurationClassNames", "");
 	}
 
@@ -101,9 +101,9 @@ class AutoConfigurationMetadataTests {
 	void writesTheSameBytesForTheSameModule() throws IOException {
 		ClassFiles.autoConfiguration(FIRST).writeTo(classes());
 		writeImports(FIRST);
-		task().generateMetadata();
+		task().documentAutoConfiguration();
 		byte[] first = read(destination());
-		task().generateMetadata();
+		task().documentAutoConfiguration();
 		assertThat(read(destination())).isEqualTo(first);
 		assertThat(new String(first, StandardCharsets.ISO_8859_1).lines()).noneMatch((line) -> line.startsWith("#"));
 	}
@@ -111,9 +111,8 @@ class AutoConfigurationMetadataTests {
 	@Test
 	void failsWhenARegisteredClassWasNeverCompiled() {
 		writeImports(FIRST);
-		assertThatExceptionOfType(GradleException.class).isThrownBy(task()::generateMetadata)
-			.withMessageContaining(FIRST)
-			.withMessageContaining(AutoConfigurationPlugin.CHECK_IMPORTS_TASK_NAME);
+		assertThatExceptionOfType(IllegalStateException.class).isThrownBy(task()::documentAutoConfiguration)
+			.withMessageContaining("Auto-configuration class '%s' not found.".formatted(FIRST));
 	}
 
 	private AutoConfigurationMetadata task() {
@@ -124,9 +123,9 @@ class AutoConfigurationMetadataTests {
 		AutoConfigurationMetadata task = project.getTasks()
 			.register(AutoConfigurationPlugin.METADATA_NAME, AutoConfigurationMetadata.class)
 			.get();
-		task.getResources().from(resources().toFile());
-		task.getClasspath().from(classes().toFile());
-		task.getDestination().set(destination().toFile());
+		task.getAutoConfigurationImports().set(importsFile().toFile());
+		task.getClassesDirectories().from(classes().toFile());
+		task.getOutputFile().set(destination().toFile());
 		return task;
 	}
 
@@ -162,8 +161,12 @@ class AutoConfigurationMetadataTests {
 		}
 	}
 
+	private Path importsFile() {
+		return resources().resolve(AutoConfigurationImports.PATH);
+	}
+
 	private void writeImports(String... entries) {
-		Path importsFile = resources().resolve(AutoConfigurationImportsTask.IMPORTS_FILE);
+		Path importsFile = importsFile();
 		try {
 			Files.createDirectories(importsFile.getParent());
 			Files.writeString(importsFile, String.join(System.lineSeparator(), entries) + System.lineSeparator());

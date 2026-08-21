@@ -20,7 +20,10 @@ import java.util.stream.Collectors;
 
 import org.gradle.api.Plugin;
 import org.gradle.api.Project;
+import org.gradle.api.attributes.Category;
+import org.gradle.api.attributes.Usage;
 import org.gradle.api.file.RegularFile;
+import org.gradle.api.model.ObjectFactory;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.PathSensitivity;
@@ -29,7 +32,6 @@ import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.compile.JavaCompile;
 import org.gradle.language.base.plugins.LifecycleBasePlugin;
 
-import org.v31bank.build.util.MetadataConfiguration;
 import org.v31bank.build.util.SourceSets;
 
 /**
@@ -147,7 +149,13 @@ public class ConfigurationPropertiesPlugin implements Plugin<Project> {
 	}
 
 	private void offerMetadata(Project project, SourceSet main) {
-		MetadataConfiguration.create(project, METADATA_CONFIGURATION_NAME, METADATA_USAGE);
+		ObjectFactory objects = project.getObjects();
+		project.getConfigurations()
+			.consumable(METADATA_CONFIGURATION_NAME, (configuration) -> configuration.attributes((attributes) -> {
+				attributes.attribute(Category.CATEGORY_ATTRIBUTE,
+						objects.named(Category.class, Category.DOCUMENTATION));
+				attributes.attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage.class, METADATA_USAGE));
+			}));
 		project.getArtifacts()
 			.add(METADATA_CONFIGURATION_NAME, generatedMetadata(project, main),
 					(artifact) -> artifact.builtBy(main.getClassesTaskName()));
