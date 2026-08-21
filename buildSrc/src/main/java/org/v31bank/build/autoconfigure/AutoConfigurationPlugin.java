@@ -160,8 +160,6 @@ public class AutoConfigurationPlugin implements Plugin<Project> {
 	 */
 	private Configuration requiredClasspath(Project project, SourceSet main) {
 		ConfigurationContainer configurations = project.getConfigurations();
-		// Declared in and resolved from the same configuration, which the role-based
-		// factories cannot express: a resolvable one accepts no declarations.
 		Configuration required = configurations.create(REQUIRED_CLASSPATH_CONFIGURATION_NAME, (configuration) -> {
 			configuration.setCanBeConsumed(false);
 			configuration.setCanBeResolved(true);
@@ -172,23 +170,17 @@ public class AutoConfigurationPlugin implements Plugin<Project> {
 		return required;
 	}
 
-	private Configuration optionalClasspath(Project project) {
-		ConfigurationContainer configurations = project.getConfigurations();
-		return resolvable(project, OPTIONAL_CLASSPATH_CONFIGURATION_NAME,
-				configurations.getByName(OptionalDependenciesPlugin.OPTIONAL_CONFIGURATION_NAME));
-	}
-
 	/**
 	 * Names must end in Classpath: that is what the conventions match to attach the
 	 * platform.
 	 * @param project the project to configure
-	 * @param name what to call it
-	 * @param parents what it takes its dependencies from
 	 * @return the configuration to resolve
 	 */
-	private Configuration resolvable(Project project, String name, Configuration... parents) {
-		return project.getConfigurations()
-			.resolvable(name, (configuration) -> configuration.extendsFrom(parents))
+	private Configuration optionalClasspath(Project project) {
+		ConfigurationContainer configurations = project.getConfigurations();
+		Configuration optional = configurations.getByName(OptionalDependenciesPlugin.OPTIONAL_CONFIGURATION_NAME);
+		return configurations
+			.resolvable(OPTIONAL_CLASSPATH_CONFIGURATION_NAME, (configuration) -> configuration.extendsFrom(optional))
 			.get();
 	}
 
