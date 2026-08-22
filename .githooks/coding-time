@@ -73,7 +73,7 @@ trap 'rm -f "$card" "$block" "$updated"' EXIT
 history | sort -n | awk \
 	-v gap="$((GAP_MINUTES * 60))" \
 	-v opening="$OPENING_MINUTES" \
-	-v recent="$((RECENT_DAYS * 86400))" \
+	-v recent="$RECENT_DAYS" \
 	-v days="$DAYS" \
 	-v now="$(date +%s)" \
 	-v card="$card" \

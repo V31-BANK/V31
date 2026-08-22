@@ -6,7 +6,7 @@
 #
 #   gap         seconds that end a sitting
 #   opening     minutes credited to the commit that opens one
-#   recent      seconds counted as "recent"
+#   recent      how many days back still counts as "recent"
 #   days        how many days of chart to draw at most
 #   now         seconds since the epoch, taken once by the caller
 #   card        file to write the SVG to
@@ -71,9 +71,6 @@ function credit(moment, opened, minutes, day) {
 		sittings++
 	}
 	total += minutes
-	if (now - moment <= recent) {
-		recently += minutes
-	}
 
 	# Calendar days counted back from today, so a bar holds exactly what `git log
 	# --date=short` files under that date rather than a 24 hours that end whenever
@@ -83,6 +80,14 @@ function credit(moment, opened, minutes, day) {
 	if (day < 0) {
 		day = 0
 	}
+
+	# Counted off the same days as the bars, so "the last 14 days" means fourteen
+	# dates ending today rather than fourteen times 24 hours ending at whatever
+	# o'clock this happened to run.
+	if (day < recent) {
+		recently += minutes
+	}
+
 	if (day < days) {
 		by_day[day] += minutes
 		if (by_day[day] > tallest) {
@@ -141,7 +146,7 @@ END {
 	last_seen = civil(today)
 
 	headline = hours(total)
-	summary = hours(recently) " hrs in the last " int(recent / 86400) " days   \302\267   " \
+	summary = hours(recently) " hrs in the last " recent " days   \302\267   " \
 			sittings " sittings   \302\267   " commits " commits"
 
 	PAD = 24
