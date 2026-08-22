@@ -23,15 +23,11 @@
 #
 set -eu
 
-# Month names and the decimal point both follow the locale, and either one would
-# reach the card: "86,5" is not a number SVG accepts as a width.
+# The decimal point follows the locale and would reach the card: "86,5" is not a
+# number SVG accepts as a width. Dates need no such guard — they are counted off
+# in UTC from %at, which is the same number in every zone.
 LC_ALL=C
-# Dates are rendered in UTC rather than in whatever zone the machine or the
-# committer happened to be in, so the same history draws the same card anywhere.
-# The arithmetic never needed this — %at and `date +%s` are both seconds since
-# the epoch, the same number the world over — but the two printed dates did.
-TZ=UTC
-export LC_ALL TZ
+export LC_ALL
 
 GAP_MINUTES=${GAP_MINUTES:-120}
 OPENING_MINUTES=${OPENING_MINUTES:-120}
@@ -60,12 +56,11 @@ grep -qF "$END" "$README" || exit 0
 # A merge is a commit whose timestamp says when branches met, not when anyone
 # worked, and one made days after the branch would open a sitting of its own.
 history() {
-	git log --no-merges --format="$1" "$2" 2>/dev/null
+	git log --no-merges --format='%at' 2>/dev/null
 }
 
-first_seen=$(history '%ad' --date=format-local:'%-d %b %Y' | tail -1)
-last_seen=$(history '%ad' --date=format-local:'%-d %b %Y' | head -1)
-[ -n "$first_seen" ] || exit 0
+# A repository whose every commit is a merge has nothing left to describe.
+history | grep -q . || exit 0
 
 mkdir -p "$(dirname "$CARD")"
 card=$(mktemp)
@@ -75,14 +70,12 @@ trap 'rm -f "$card" "$block" "$updated"' EXIT
 
 # Sorted because the estimate walks forward in time, and because a rebase or an
 # imported history can leave author dates out of order.
-history '%at' --date=default | sort -n | awk \
+history | sort -n | awk \
 	-v gap="$((GAP_MINUTES * 60))" \
 	-v opening="$OPENING_MINUTES" \
 	-v recent="$((RECENT_DAYS * 86400))" \
 	-v days="$DAYS" \
 	-v now="$(date +%s)" \
-	-v first_seen="$first_seen" \
-	-v last_seen="$last_seen" \
 	-v card="$card" \
 	-v block="$block" \
 	-f "$program"

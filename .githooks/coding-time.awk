@@ -9,10 +9,36 @@
 #   recent      seconds counted as "recent"
 #   days        how many days of chart to draw at most
 #   now         seconds since the epoch, taken once by the caller
-#   first_seen  date of the oldest commit, already formatted
-#   last_seen   date of the newest commit, already formatted
 #   card        file to write the SVG to
 #   block       file to write the markdown to
+
+# Every date here is a UTC calendar day, which a Unix timestamp divided by 86400
+# already is: UTC has no leap seconds to throw the division off.
+BEGIN {
+	today = int(now / 86400)
+	split("Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec", MONTH, " ")
+}
+
+# Turns one of those days back into the date it names. Done here rather than by
+# the caller because only awk knows how far back the chart reached, and done by
+# hand because the awk macOS ships has no strftime.
+function civil(epoch_day,   z, era, doe, yoe, doy, mp, year, month, day) {
+	z = epoch_day + 719468
+	era = int(z / 146097)
+	doe = z - era * 146097
+	yoe = int((doe - int(doe / 1460) + int(doe / 36524) - int(doe / 146096)) / 365)
+	doy = doe - (365 * yoe + int(yoe / 4) - int(yoe / 100))
+	mp = int((5 * doy + 2) / 153)
+	year = yoe + era * 400
+	month = mp + (mp < 10 ? 3 : -9)
+	day = doy - int((153 * mp + 2) / 5) + 1
+	# March is where the algorithm starts its year, so January and February belong
+	# to the one after it.
+	if (month <= 2) {
+		year++
+	}
+	return day " " MONTH[month] " " year
+}
 
 function hours(minutes) {
 	return sprintf("%.1f", minutes / 60)
@@ -49,10 +75,11 @@ function credit(moment, opened, minutes, day) {
 		recently += minutes
 	}
 
-	# Days counted back from now, so the rightmost bar is the current one. A
-	# commit dated in the future — a skewed clock, a hand-set date — would count
-	# backwards past today, so it is pinned to today instead.
-	day = int((now - moment) / 86400)
+	# Calendar days counted back from today, so a bar holds exactly what `git log
+	# --date=short` files under that date rather than a 24 hours that end whenever
+	# this ran. A commit dated in the future — a skewed clock, a hand-set date —
+	# would count backwards past today, so it is pinned to today instead.
+	day = today - int(moment / 86400)
 	if (day < 0) {
 		day = 0
 	}
@@ -83,10 +110,12 @@ END {
 	# The commit being made is not in the history this reads: a pre-commit hook
 	# runs before that commit exists. Crediting the present closes the gap, so the
 	# card describes the commit it is about to travel in rather than the one
-	# before it. Nothing accumulates: every run recomputes from the log and adds
-	# exactly one present. `commits` is left alone — the present is not a commit.
+	# before it — counted as well as timed, since a card that ships inside a commit
+	# it does not count is a card one behind the log. Nothing accumulates: every
+	# run recomputes from the log and adds exactly one present.
 	if (now > previous) {
 		credit(now)
+		commits++
 	}
 
 	# One bar per day the repository has existed, up to the window asked for, so
@@ -97,6 +126,12 @@ END {
 	if (days < 1) {
 		days = 1
 	}
+
+	# Both ends name the days the chart actually draws. Taking them from the log
+	# instead would contradict the count between them as soon as the window was
+	# narrower than the history.
+	first_seen = civil(today - (days - 1))
+	last_seen = civil(today)
 
 	headline = hours(total)
 	summary = hours(recently) " hrs in the last " int(recent / 86400) " days   \302\267   " \
