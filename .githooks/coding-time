@@ -26,7 +26,12 @@ set -eu
 # Month names and the decimal point both follow the locale, and either one would
 # reach the card: "86,5" is not a number SVG accepts as a width.
 LC_ALL=C
-export LC_ALL
+# Dates are rendered in UTC rather than in whatever zone the machine or the
+# committer happened to be in, so the same history draws the same card anywhere.
+# The arithmetic never needed this — %at and `date +%s` are both seconds since
+# the epoch, the same number the world over — but the two printed dates did.
+TZ=UTC
+export LC_ALL TZ
 
 GAP_MINUTES=${GAP_MINUTES:-120}
 OPENING_MINUTES=${OPENING_MINUTES:-120}
@@ -58,8 +63,8 @@ history() {
 	git log --no-merges --format="$1" "$2" 2>/dev/null
 }
 
-first_seen=$(history '%ad' --date=format:'%-d %b %Y' | tail -1)
-last_seen=$(history '%ad' --date=format:'%-d %b %Y' | head -1)
+first_seen=$(history '%ad' --date=format-local:'%-d %b %Y' | tail -1)
+last_seen=$(history '%ad' --date=format-local:'%-d %b %Y' | head -1)
 [ -n "$first_seen" ] || exit 0
 
 mkdir -p "$(dirname "$CARD")"

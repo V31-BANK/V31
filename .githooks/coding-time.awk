@@ -33,24 +33,26 @@ function markdown(line) {
 	print line > block
 }
 
-{
-	# Whether this commit opened a sitting is a fact about the gap, not about the
+# Credits the time a moment earned and files it under the day it fell on. Called
+# once per commit, and once more for the present, which no commit speaks for yet.
+function credit(moment, opened, minutes, day) {
+	# Whether a moment opened a sitting is a fact about the gap, not about the
 	# minutes it earned: a real gap of exactly `opening` minutes would otherwise
 	# be mistaken for one.
-	opened = (commits == 0 || $1 - previous > gap)
-	minutes = opened ? opening : ($1 - previous) / 60
+	opened = (moments == 0 || moment - previous > gap)
+	minutes = opened ? opening : (moment - previous) / 60
 	if (opened) {
 		sittings++
 	}
 	total += minutes
-	if (now - $1 <= recent) {
+	if (now - moment <= recent) {
 		recently += minutes
 	}
 
-	# Days counted back from today, so the rightmost bar is the current one. A
+	# Days counted back from now, so the rightmost bar is the current one. A
 	# commit dated in the future — a skewed clock, a hand-set date — would count
-	# backwards from today, so it is pinned to today instead.
-	day = int((now - $1) / 86400)
+	# backwards past today, so it is pinned to today instead.
+	day = int((now - moment) / 86400)
 	if (day < 0) {
 		day = 0
 	}
@@ -64,13 +66,27 @@ function markdown(line) {
 		lived = day + 1
 	}
 
-	previous = $1
+	previous = moment
+	moments++
+}
+
+{
+	credit($1)
 	commits++
 }
 
 END {
 	if (commits == 0) {
 		exit
+	}
+
+	# The commit being made is not in the history this reads: a pre-commit hook
+	# runs before that commit exists. Crediting the present closes the gap, so the
+	# card describes the commit it is about to travel in rather than the one
+	# before it. Nothing accumulates: every run recomputes from the log and adds
+	# exactly one present. `commits` is left alone — the present is not a commit.
+	if (now > previous) {
+		credit(now)
 	}
 
 	# One bar per day the repository has existed, up to the window asked for, so
