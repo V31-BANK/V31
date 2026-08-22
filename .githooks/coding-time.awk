@@ -150,11 +150,14 @@ END {
 			sittings " sittings   \302\267   " commits " commits"
 
 	PAD = 24
-	BASE = 130
+	LABEL_Y = 32
+	HEADLINE_Y = 70
+	BASE = 134
+	AXIS_Y = 152
 	CEILING = 46
 	HEADLINE_SIZE = 38
 	SUMMARY_SIZE = 12
-	HEIGHT = 164
+	HEIGHT = 168
 	MINIMUM_BAR = 3
 
 	# Width follows the text, and the chart is then stretched across whatever that
@@ -185,9 +188,9 @@ END {
 	svg("    .bar-quiet { fill: #21262d }")
 	svg("  </style>")
 	svg("  <rect class=\"card\" x=\"0.5\" y=\"0.5\" width=\"" (width - 1) "\" height=\"" (HEIGHT - 1) "\" rx=\"8\"/>")
-	svg("  <text class=\"label\" x=\"" PAD "\" y=\"36\">TIME ON RECORD</text>")
-	svg("  <text class=\"figure\" x=\"" PAD "\" y=\"78\">" headline "<tspan class=\"unit\" dx=\"7\">hrs</tspan></text>")
-	svg("  <text class=\"note\" x=\"" (width - PAD) "\" y=\"78\" text-anchor=\"end\">" summary "</text>")
+	svg("  <text class=\"label\" x=\"" PAD "\" y=\"" LABEL_Y "\">TIME ON RECORD</text>")
+	svg("  <text class=\"figure\" x=\"" PAD "\" y=\"" HEADLINE_Y "\">" headline "<tspan class=\"unit\" dx=\"7\">hrs</tspan></text>")
+	svg("  <text class=\"note\" x=\"" (width - PAD) "\" y=\"" HEADLINE_Y "\" text-anchor=\"end\">" summary "</text>")
 
 	for (i = 0; i < days; i++) {
 		minutes = by_day[days - 1 - i] + 0
@@ -206,10 +209,10 @@ END {
 				style, PAD + i * pitch, BASE - height, bar, height))
 	}
 
-	svg("  <text class=\"axis\" x=\"" PAD "\" y=\"148\">" first_seen "</text>")
-	svg("  <text class=\"axis\" x=\"" (width / 2) "\" y=\"148\" text-anchor=\"middle\">" \
+	svg("  <text class=\"axis\" x=\"" PAD "\" y=\"" AXIS_Y "\">" first_seen "</text>")
+	svg("  <text class=\"axis\" x=\"" (width / 2) "\" y=\"" AXIS_Y "\" text-anchor=\"middle\">" \
 			lived (lived == 1 ? " day" : " days") "</text>")
-	svg("  <text class=\"axis\" x=\"" (width - PAD) "\" y=\"148\" text-anchor=\"end\">" last_seen "</text>")
+	svg("  <text class=\"axis\" x=\"" (width - PAD) "\" y=\"" AXIS_Y "\" text-anchor=\"end\">" last_seen "</text>")
 	svg("</svg>")
 	close(card)
 

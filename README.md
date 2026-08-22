@@ -19,8 +19,6 @@ which reads commit timestamps and nothing else. `GAP_MINUTES`, `OPENING_MINUTES`
 
 <!-- CODING-TIME:END -->
 
-test coding-time
-
 ![Clean Architecture](.idea/readme/image/clean-architecture.svg)
 
 Due to the amount of boilerplate required by the current framework,
