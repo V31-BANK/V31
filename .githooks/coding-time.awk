@@ -98,6 +98,12 @@ function credit(moment, opened, minutes, day) {
 }
 
 {
+	# The stream arrives sorted, so the first line is the oldest commit there is.
+	# Read here rather than from `git log`, whose order is commit date and parts
+	# company with author date the moment anything is rebased.
+	if (commits == 0) {
+		oldest = $1
+	}
 	credit($1)
 	commits++
 }
@@ -127,10 +133,11 @@ END {
 		days = 1
 	}
 
-	# Both ends name the days the chart actually draws. Taking them from the log
-	# instead would contradict the count between them as soon as the window was
-	# narrower than the history.
-	first_seen = civil(today - (days - 1))
+	# The whole history, however little of it the chart has room to draw: the
+	# headline counts every commit, so the axis names every day. The right end is
+	# today rather than the newest commit for the same reason the present is
+	# credited — the commit being made is one the card speaks for.
+	first_seen = civil(int(oldest / 86400))
 	last_seen = civil(today)
 
 	headline = hours(total)
@@ -196,7 +203,7 @@ END {
 
 	svg("  <text class=\"axis\" x=\"" PAD "\" y=\"148\">" first_seen "</text>")
 	svg("  <text class=\"axis\" x=\"" (width / 2) "\" y=\"148\" text-anchor=\"middle\">" \
-			days (days == 1 ? " day" : " days") "</text>")
+			lived (lived == 1 ? " day" : " days") "</text>")
 	svg("  <text class=\"axis\" x=\"" (width - PAD) "\" y=\"148\" text-anchor=\"end\">" last_seen "</text>")
 	svg("</svg>")
 	close(card)
